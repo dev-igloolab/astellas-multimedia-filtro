@@ -56,6 +56,8 @@
 .intro .cta { background: var(--red); }
 .intro small { position: absolute; left: 6%; right: 6%; bottom: 5cqw; font-size: 2.2cqw; }
 
+.page-instructions .header .home .icon,
+.page-zones .header .home .icon { background: var(--red); }
 .page-instructions .center { position: absolute; inset: 27.5cqw 7cqw auto; margin: 0; gap: 0; }
 .instructions { color: var(--peach); }
 .instructions .check {
@@ -127,11 +129,11 @@
 .countdown .large-icon { width: 18cqw; height: 18cqw; margin-bottom: 2cqw; color: var(--peach); }
 .countdown h1 { color: var(--amber); font-size: 7.3cqw; line-height: 1.1; white-space: nowrap; transform: scaleX(.9); }
 .page-countdown .center>p { max-width: 80cqw; margin-top: .2cqw; color: var(--peach); font: 400 7.2cqw/1 Anton, sans-serif; transform: scaleX(.9); }
-.countdown .chevrons { display: block; width: 10cqw; height: 10cqw; flex: none; margin: 4.4cqw 0 4.1cqw; background: var(--amber); }
+.countdown .chevrons { display: block; width: 9cqw; height: 9cqw; flex: none; margin: 4.9cqw 0 4.6cqw; background: var(--amber); }
 .countdown .count { position: relative; isolation: isolate; width: 61cqw; height: 61cqw; flex: none; border: 0; background: transparent; color: var(--peach); }
-.countdown .count::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: 50%; background: conic-gradient(#dbab69, #e2b996 25%, var(--peach) 50%, #d39343 75%, #dbab69); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - .8cqw), #000 0); mask: radial-gradient(farthest-side, transparent calc(100% - .8cqw), #000 0); }
-.countdown .count::after { content: ''; position: absolute; inset: 3cqw; z-index: -1; border-radius: 50%; background: rgb(229 151 36 / 75%); }
-.countdown .count-dot { position: absolute; top: 5.5%; right: 16%; width: 3.8cqw; height: 3.8cqw; border-radius: 50%; background: var(--amber); }
+.countdown .count::before { content: ''; position: absolute; inset: 0; z-index: -1; border: .8cqw solid #c99558; border-right-color: #d4a88d; border-bottom-color: #d4a88d; border-radius: 50%; }
+.countdown .count::after { content: ''; position: absolute; inset: 3.5cqw; z-index: -1; border-radius: 50%; background: rgb(229 151 36 / 75%); }
+.countdown .count-dot { position: absolute; top: calc(14.6447% + .2828cqw); left: calc(85.3553% - .2828cqw); transform: translate(-50%, -50%); width: 3.8cqw; height: 3.8cqw; border-radius: 50%; background: var(--amber); }
 
 .page-age .center { position: absolute; inset: 33cqw 16.5% auto 11.5%; margin: 0; gap: 4cqw; }
 .page-age .large-icon { width: 25cqw; height: 18cqw; color: var(--red); }
@@ -173,15 +175,28 @@
 
 
 
-.map { padding: 9cqw 10% 0; gap: 0; }
+.download-screen { padding: 8cqw 7cqw; background: #241827; }
+.download-screen > canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.download-screen .header { position: relative; z-index: 1; }
+.download-screen .header .home .icon { background: var(--red); }
+.download-bottom { position: absolute; bottom: 0; left: 0; right: 0; padding: 18cqw 10cqw 4cqw; background: linear-gradient(transparent, #000 90%); }
+.download-banner { display: flex; align-items: center; justify-content: center; gap: 3cqw; width: 100%; min-height: 16.5cqw; padding: 2cqw 4cqw; border: 0; border-radius: 1cqw; background: var(--amber); color: var(--brown); font: 400 5cqw/1.1 Anton, sans-serif; text-align: left; }
+.download-banner > canvas { flex: none; width: 15cqw !important; height: 15cqw !important; }
+.download-legal { margin: 4cqw auto 0; max-width: 64cqw; color: white; text-align: center; font: 400 2cqw/1.25 'Myriad Variable Concept', sans-serif; }
+.download-status { color: var(--peach); font-size: 3cqw; text-align: center; }
+.download-status:empty { display: none; }
+.map { padding: 6cqw 6% 0; gap: 0; }
 .map .header { flex: none; }
-.map h1 { position: absolute; top: 25.5cqw; left: 10.5%; width: 79%; background: var(--amber); color: var(--brown); padding: 1cqw; font-size: 6.5cqw; line-height: 1.1; }
-.map .final-photo { position: absolute; top: 35cqw; left: 10%; width: 80%; height: 95cqw; border-radius: 4cqw; overflow: hidden; background: #615271; }
+.map .header .home .icon { background: var(--red); }
+.map h1 { position: absolute; top: 22cqw; left: 6%; width: 88%; background: var(--amber); color: var(--brown); padding: 1cqw; font-size: 6cqw; line-height: 1.1; }
+.map .final-photo { position: absolute; top: 33cqw; left: 6%; width: 88%; height: 102cqw; border-radius: 4cqw; overflow: hidden; background: #615271; }
 .map .final-photo img { width: 100%; height: 100%; object-fit: cover; }
 .map .final-photo canvas { display: block; width: 100%; height: 100%; object-fit: cover; }
-.map .final-photo p { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 8cqw 4cqw 4cqw; background: linear-gradient(transparent,#1c0b16dd); color: white; font-size: 3.7cqw; line-height: 1.2; }
-.map .map-copy { position: absolute; top: 132cqw; left: 10%; width: 80%; height: 18cqw; border-radius: 1.5cqw; display: grid; place-items: center; background: var(--brown); color: var(--peach); font-family:'Myriad Variable Concept',sans-serif; font-size: 4cqw; line-height: 1.25; }
-.map .cta { bottom: 15.5cqw; left: 10%; width: 80%; background: var(--amber); color: var(--red); }
+.map .final-photo p { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 8cqw 4cqw 4cqw; background: linear-gradient(transparent,#1c0b16dd); color: var(--peach); font-size: 4.1cqw; font-weight: 300; line-height: 1.2; }
+.map .map-copy { position: absolute; top: 138cqw; left: 6%; width: 88%; height: 20cqw; border-radius: 1.5cqw; display: flex; flex-direction: column; justify-content: center; background: var(--brown); color: var(--peach); font-family:'Myriad Variable Concept',sans-serif; font-size: 4.5cqw; line-height: 1.25; }
+.map .map-copy br { display: none; }
+.map .map-copy strong { display: block; font-family: 'Myriad Variable Concept',sans-serif; font-weight: 700; }
+.map .cta { top: 161cqw; bottom: auto; left: 6%; width: 88%; background: var(--amber); color: var(--red); }
 
 
 .intro p,
@@ -266,7 +281,7 @@
 .result-screen.none .result-card { background: var(--brown); }
 .result-screen.moderate .result-card { background: #f58d00; }
 .result-screen.severe .result-card { background: #ff0808; }
-.result-screen .result-card h2 { margin: 0 0 2.3cqw; font: 700 4.1cqw/1.1 'Myriad Variable Concept', sans-serif; color: var(--result-ink); text-align: center; }
+.result-screen .result-card h2 { margin: 0 0 2.3cqw; font: 700 4.1cqw/1.1 'Myriad Variable Concept', sans-serif; color: #FFD8C4; text-align: center; }
 .result-screen .result-list { padding: 0; margin: 0; list-style: none; }
 .result-screen .result-list li { display: flex; align-items: center; gap: 1.8cqw; width: 100%; min-height: 10.7cqw; margin: 0 0 1.3cqw; padding: .7cqw 1.5cqw; border-radius: 1.1cqw; background: var(--peach); color: var(--brown); font: 400 3.9cqw/1.05 'Myriad Variable Concept', sans-serif; text-align: left; white-space: nowrap; }
 .result-screen .result-list li .icon { flex: none; width: 11.5cqw; height: 9.2cqw; background: var(--pink); }
@@ -282,12 +297,12 @@
 .result-screen.severe .result-message { margin-top: 6cqw; }
 .result-screen .result-footer { position: absolute; left: 5%; right: 5%; bottom: 1.6cqw; display: flex; flex-direction: column; gap: 1.5cqw; }
 .result-screen .result-resource { display: flex; align-items: center; align-self: center; gap: 1.5cqw; width: 95%; min-height: 20cqw; margin: 0 0 -.5cqw; color: var(--result-ink); text-align: left; }
-.result-screen .result-resource p { flex: 1; font: 400 3cqw/1.14 'Myriad Variable Concept', sans-serif; }
+.result-screen .result-resource p { flex: 1; color: #FFD8C4; font: 300 3cqw/1.14 'Myriad Variable Concept', sans-serif; text-align: justify; }
 .result-screen .result-qr { display: block; flex: none; width: 20cqw; height: 20cqw; }
 .result-screen .result-qr img { display: block; width: 100%; height: 100%; }
 .result-screen .result-card .cta { position: static; width: 100%; min-height: 9.3cqw; margin: 0; border-radius: 9cqw; background: var(--peach); color: var(--pink); font-size: 4.8cqw; }
 .result-screen.none .result-card .cta, .result-screen.severe .result-card .cta { color: #ff0808; }
 .result-screen.moderate .result-card .cta { color: #f58d00; }
-.result-screen .result-legal { margin: 0; color: var(--result-ink); font: 400 1.08cqw/1.12 'Myriad Variable Concept', sans-serif; text-align: left; }
-.result-screen .result-legal strong { font-weight: 700; }
+.result-screen .result-legal { margin: 0; color: #FFD8C4; font: 400 1.08cqw/1.12 'Myriad Variable Concept', sans-serif; text-align: left; }
+.result-screen .result-legal strong { font-weight: 400; }
 

@@ -1,5 +1,6 @@
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
+import { Script } from 'node:vm';
 
 const root = resolve(import.meta.dirname, '..');
 const dist = resolve(root, 'dist');
@@ -56,7 +57,9 @@ for (const match of [...html.matchAll(/<script\b[^>]*\btype="module"[^>]*\bsrc="
   const file = fileFor(match[1]);
   if (!file) throw new Error(`Script externo no compatible: ${match[1]}`);
   const script = await readFile(file, 'utf8');
-  html = html.replace(match[0], `<script>window.ASTELLAS_ASSETS=${JSON.stringify(assetData)};</script><script>${script}</script>`);
+  // A callback preserves literal $ patterns inside bundled code (e.g. QR regexes).
+  new Script(script);
+  html = html.replace(match[0], () => `<script>window.ASTELLAS_ASSETS=${JSON.stringify(assetData)};</script><script>${script.replace(/<\/script/gi, '<\\/script')}</script>`);
 }
 if (/<script\b[^>]*\bsrc=/.test(html)) throw new Error('Quedó un script externo en el export portable.');
 
@@ -67,6 +70,9 @@ for (const match of [...html.matchAll(/\b(src|href|poster)="([^"]+)"/g)]) {
   html = html.replace(match[0], `${match[1]}="${await dataUrl(match[2])}"`);
 }
 
+for (const match of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) {
+  new Script(match[1]);
+}
 await mkdir(resolve(root, 'portable'), { recursive: true });
 await writeFile(output, html);
 console.log(`portable/index.html listo (${(Buffer.byteLength(html) / 1024).toFixed(1)} KB)`);
