@@ -13,10 +13,11 @@ import '../styles/design.css';
 <body>
   <main class="viewport"><div class="stage" id="app"></div></main>
   <script>
-    import { renderThermal } from '../thermal.js';
+    import { renderThermal, validateTrackedZone } from '../thermal.js';
+    import { prepareTracking, analyzePhoto } from '../pose.js';
     import QRCode from 'qrcode';
     const app = document.querySelector('#app');
-    const state = { page: 'intro', resultIndex: 0, consent: false, assetsReady: false, assetsError: false, assetsLoading: false, photo: '', stream: null, age: '', frequency: '', feelings: new Set(), zones: new Set(), timer: null };
+    const state = { page: 'intro', resultIndex: 0, consent: false, assetsReady: false, assetsError: false, assetsLoading: false, photo: '', photoReady: false, analyzing: false, trackingError: '', stream: null, age: '', frequency: '', feelings: new Set(), zones: new Set(), timer: null };
     const iconNames = [
       'bienestar-mental', 'brazos-piernas', 'calor-repentino', 'calor-termometro',
       'cambios-animo', 'cara-cuello', 'concentracion', 'continuar-abajo',
@@ -64,7 +65,7 @@ import '../styles/design.css';
       const images = Object.keys(staticAssets).map(warmAsset);
       const fonts = ['400 38px Anton', '400 38px "Myriad Variable Concept"', '700 38px "Myriad Variable Concept"']
         .map(font => document.fonts.load(font, '¡¿ÁÉÍÓÚáéíóúñÑ'));
-      const results = await Promise.allSettled([...images, ...fonts, document.fonts.ready]);
+      const results = await Promise.allSettled([...images, ...fonts, document.fonts.ready, prepareTracking()]);
       state.assetsReady = results.every(result => result.status === 'fulfilled');
       state.assetsError = !state.assetsReady;
       state.assetsLoading = false;
@@ -150,8 +151,8 @@ import '../styles/design.css';
             <div class="camera-info">
               <h2>Por eso esta activación será<br>100% PERSONALIZADA</h2>
               <p>Tómate una foto y déjanos conocerte.</p>
-              <p class="camera-error" id="camera-error"></p>
-              ${cta(state.photo ? 'SIGUIENTE' : 'CONTINUAR SIN CÁMARA')}
+              <p class="camera-error" id="camera-error" role="status">${state.trackingError || (state.analyzing ? 'Ubicando tu cuerpo en la foto...' : '')}</p>
+              ${cta(state.analyzing ? 'ANALIZANDO...' : 'SIGUIENTE', !state.photoReady)}
             </div>
           </section>`;
           if (!state.photo) startCamera();
@@ -160,7 +161,7 @@ import '../styles/design.css';
         case 'age': app.innerHTML = `<section class="screen peach">${head(true)}<div class="center">${icon('grupo-mujeres','large-icon')}<h1>¿En qué rango de edad<br>te encuentras?</h1><div class="choices">${choices('age')}</div></div>${cta('SIGUIENTE',!state.age)}</section>`; break;
         case 'frequency': app.innerHTML = `<section class="screen amber">${head()}<div class="center">${state.photo ? `<img class="avatar" src="${state.photo}" alt="Tu foto">` : ''}<h1>Bienvenida</h1><p>¡Es momento de cambiar la conversación sobre la menopausia y pasar de los prejuicios al control!</p><div class="dark-card"><h2>¿Con qué frecuencia sientes sofocos<br>o episodios repentinos de calor?</h2><div class="choices">${choices('frequency')}</div></div></div>${cta('SIGUIENTE',!state.frequency)}</section>`; break;
         case 'feelings': app.innerHTML = `<section class="screen amber">${head()}<div class="center"><div class="dark-card">${icon('sofoco','large-icon')}<h1>¿Qué sientes<br>cuando aparece el<br>sofoco?</h1><div class="choices">${choices('feelings')}</div></div></div>${cta('SIGUIENTE',!state.feelings.size)}</section>`; break;
-        case 'zones': app.innerHTML = `<section class="screen red">${head()}<div class="center"><h1>¿En qué parte de tu<br>cuerpo sientes con mayor<br>frecuencia los sofocos?</h1><div class="zone-grid">${items.zones.map(([value,label,image],i) => `<button class="zone ${state.zones.has(value) ? 'selected' : ''}" data-action="select" data-group="zones" data-value="${value}" aria-pressed="${state.zones.has(value)}">${icon(image)}<span><b>${String.fromCharCode(65+i)}.</b> ${label}</span></button>`).join('')}</div></div>${cta('SIGUIENTE')}</section>`; break;
+        case 'zones': app.innerHTML = `<section class="screen red">${head()}<div class="center"><h1>¿En qué parte de tu<br>cuerpo sientes con mayor<br>frecuencia los sofocos?</h1><div class="zone-grid" role="radiogroup" aria-label="Parte del cuerpo">${items.zones.map(([value,label,image],i) => `<button class="zone ${state.zones.has(value) ? 'selected' : ''}" role="radio" data-action="select" data-group="zones" data-value="${value}" aria-checked="${state.zones.has(value)}">${icon(image)}<span><b>${String.fromCharCode(65+i)}.</b> ${label}</span></button>`).join('')}</div></div>${cta('SIGUIENTE',!state.zones.size)}</section>`; break;
         case 'result': {
           const variant = resultVariants[state.resultIndex];
           app.innerHTML = `<section class="screen peach result-screen ${variant.kind}">${head(true)}<div class="result"><h1>${variant.title}</h1><p class="result-intro">${variant.intro}</p>${resultCard(variant)}</div></section>`;
@@ -189,7 +190,8 @@ import '../styles/design.css';
       downloadBusy=true;
       try {
         await document.fonts.ready;
-        const image=new Image(); image.src=state.photo; await image.decode();
+        const filteredPhoto=document.createElement('canvas');
+        await renderThermal(state.photo,state.zones,filteredPhoto,{width:936,height:1590});
         const brand=new Image(); brand.src=assetUrl('logo'); await brand.decode();
         const canvas=document.createElement('canvas'); canvas.width=1080; canvas.height=1920;
         const ctx=canvas.getContext('2d');
@@ -197,9 +199,11 @@ import '../styles/design.css';
         const logoHeight=300*brand.height/brand.width;
         ctx.drawImage(brand,390,(160-logoHeight)/2,300,logoHeight);
         ctx.fillStyle='#000'; ctx.fillRect(72,168,936,1590);
-        const scale=Math.max(936/image.width,1060/image.height);
-        const w=936/scale,h=1060/scale;
-        ctx.drawImage(image,(image.width-w)/2,(image.height-h)/2,w,h,72,168,936,1060);
+        ctx.drawImage(filteredPhoto,72,168,936,1590);
+        const legalShade=ctx.createLinearGradient(0,1460,0,1758);
+        legalShade.addColorStop(0,'#0000');
+        legalShade.addColorStop(1,'#000d');
+        ctx.fillStyle=legalShade;ctx.fillRect(72,1460,936,298);
         ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.font='400 21px "Myriad Variable Concept"';
         const lines=[]; let line='';
         for(const word of photoDisclaimer.split(' ')) {
@@ -226,44 +230,54 @@ import '../styles/design.css';
       catch { cameraError('Puedes continuar sin cámara o activar el permiso y pulsar repetir.'); }
     }
     function cameraError(text) { const el=document.querySelector('#camera-error'); if(el) el.textContent=text; }
-    // Temporary preview image so the entire experience works without a webcam.
-    function createDemoPhoto() {
-      const canvas=document.createElement('canvas'); canvas.width=900; canvas.height=1200;
-      const ctx=canvas.getContext('2d');
-      ctx.fillStyle='#a09185'; ctx.fillRect(0,0,900,1200);
-      ctx.fillStyle='#52443f';
-      ctx.beginPath(); ctx.ellipse(450,420,150,190,0,0,Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(450,1030,340,410,0,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle='#ffffff'; ctx.font='32px sans-serif'; ctx.textAlign='center';
-      ctx.fillText('VISTA DE PRUEBA · SIN CÁMARA',450,1150);
-      return canvas.toDataURL('image/png');
-    }
-    function capture() {
+    async function capture() {
       const video=document.querySelector('#video'); if(!video?.videoWidth) { cameraError('Espera a que la cámara esté lista.'); return; }
       const canvas=document.createElement('canvas'); canvas.width=900; canvas.height=1200;
       const width=Math.min(video.videoWidth,video.videoHeight*.75),height=width/.75;
       const ctx=canvas.getContext('2d'); ctx.translate(canvas.width,0); ctx.scale(-1,1); ctx.drawImage(video,(video.videoWidth-width)/2,(video.videoHeight-height)/2,width,height,0,0,canvas.width,canvas.height);
-      state.photo=canvas.toDataURL('image/webp',.9); stopCamera(); render();
+      const photo=canvas.toDataURL('image/webp',.9);
+      state.photo=photo; state.photoReady=false; state.analyzing=true; state.trackingError='';
+      stopCamera(); render();
+      try {
+        await analyzePhoto(photo);
+        if(state.photo===photo) state.photoReady=true;
+      } catch(error) {
+        if(state.photo===photo) state.trackingError=error.message || 'No pudimos analizar la foto. Repítela con buena luz.';
+      } finally {
+        if(state.photo===photo) { state.analyzing=false; render(); }
+      }
     }
     function navigate(page) {
       if(state.timer) clearInterval(state.timer); state.timer=null; if(page!=='camera') stopCamera(); state.page=page; render();
       if(page==='countdown') { let n=3; state.timer=setInterval(()=>{n--; const el=document.querySelector('#count span'); if(el) el.textContent=String(n); if(n===0) navigate('age');},850); }
     }
-    function next() { if(state.page==='intro'&&(!state.consent||!state.assetsReady))return; if(state.page==='result') { if(state.resultIndex<resultVariants.length-1) { state.resultIndex++; render(); } else navigate('map'); return; } const routes={intro:'instructions',instructions:'camera',camera:'countdown',age:'frequency',frequency:'feelings',feelings:'zones',zones:'result'}; if(state.page==='zones')state.resultIndex=0; if(routes[state.page]) navigate(routes[state.page]); }
+    async function next() {
+      if(state.page==='intro'&&(!state.consent||!state.assetsReady))return;
+      if(state.page==='camera'&&!state.photoReady)return;
+      if(state.page==='zones') {
+        try { await validateTrackedZone(state.photo, state.zones); }
+        catch(error) {
+          state.photo=''; state.photoReady=false;
+          state.trackingError=error.message || 'Repite la foto para mostrar la zona elegida.';
+          navigate('camera'); return;
+        }
+        state.resultIndex=0;
+      }
+      if(state.page==='result') { if(state.resultIndex<resultVariants.length-1) { state.resultIndex++; render(); } else navigate('map'); return; }
+      const routes={intro:'instructions',instructions:'camera',camera:'countdown',age:'frequency',frequency:'feelings',feelings:'zones',zones:'result'};
+      if(routes[state.page]) navigate(routes[state.page]);
+    }
     app.addEventListener('click',event=>{
       const button=event.target.closest('[data-action]'); if(!button) return;
       const {action,group,value}=button.dataset;
       if(action==='retry-assets') { state.assetsError=false; render(); preloadAssets(); }
-      if(action==='home') { state.consent=false;state.photo='';state.age='';state.frequency='';state.resultIndex=0;state.feelings.clear();state.zones.clear();navigate('intro'); }
+      if(action==='home') { state.consent=false;state.photo='';state.photoReady=false;state.trackingError='';state.age='';state.frequency='';state.resultIndex=0;state.feelings.clear();state.zones.clear();navigate('intro'); }
       if(action==='next'&&state.page==='map') { showDownload(); return; }
       if(action==='download') downloadPhoto();
-      if(action==='next') {
-        if(state.page==='camera'&&!state.photo) state.photo=createDemoPhoto();
-        next();
-      }
-      if(action==='capture') { if(state.photo) { stopCamera(); state.photo=''; navigate('camera'); } else capture(); }
-      if(action==='retake') {stopCamera();state.photo='';navigate('camera');}
-      if(action==='select') { if(group==='age'||group==='frequency') state[group]=value; else {const selected=state[group];selected.has(value)?selected.delete(value):selected.add(value);} render(); }
+      if(action==='next') next();
+      if(action==='capture') { if(state.photo) { stopCamera(); state.photo=''; state.photoReady=false; state.trackingError=''; navigate('camera'); } else capture(); }
+      if(action==='retake') {stopCamera();state.photo='';state.photoReady=false;state.trackingError='';navigate('camera');}
+      if(action==='select') { if(group==='age'||group==='frequency') state[group]=value; else if(group==='zones') state.zones=new Set([value]); else {const selected=state[group];selected.has(value)?selected.delete(value):selected.add(value);} render(); }
     });
     app.addEventListener('change',event=>{if(event.target.id==='consent'){state.consent=event.target.checked;render();}});
     const viewport = document.querySelector('.viewport');

@@ -121,6 +121,7 @@
 .camera-info .cta { position: static; width: 88%; min-height: 9cqw; margin: 4.8cqw auto 0; background: var(--red); color: white; }
 .camera-info .cta:disabled { opacity: 1; }
 .camera-error:empty { display: none; }
+.camera-error { position: absolute; left: 7%; right: 7%; bottom: 4cqw; color: var(--amber); font: 400 2.8cqw/1.2 'Myriad Variable Concept', sans-serif; text-align: center; }
 
 .countdown { background: var(--brown); }
 .countdown-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }

@@ -8,6 +8,7 @@ const output = resolve(root, 'portable', 'index.html');
 const mime = {
   '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp',
   '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.otf': 'font/otf',
+  '.js': 'text/javascript', '.wasm': 'application/wasm', '.task': 'application/octet-stream',
 };
 
 function fileFor(url) {
@@ -53,13 +54,22 @@ assetData.logo = await dataUrl('/assets/logos/astellas-blanco.webp');
 assetData.logoColor = await dataUrl('/assets/logos/astellas-color.webp');
 assetData.background = await dataUrl('/assets/fondos/inicio.webp');
 assetData.qr = await dataUrl('/assets/qr/menopausia-figma.svg');
+const visionData = Object.fromEntries(await Promise.all(Object.entries({
+  model: '/models/pose_landmarker_lite.task',
+  loader: '/mediapipe/vision_wasm_internal.js',
+  wasm: '/mediapipe/vision_wasm_internal.wasm',
+  loaderFallback: '/mediapipe/vision_wasm_nosimd_internal.js',
+  wasmFallback: '/mediapipe/vision_wasm_nosimd_internal.wasm',
+}).map(async ([name, path]) => [name, await dataUrl(path)])));
 for (const match of [...html.matchAll(/<script\b[^>]*\btype="module"[^>]*\bsrc="([^"]+)"[^>]*><\/script>/g)]) {
   const file = fileFor(match[1]);
   if (!file) throw new Error(`Script externo no compatible: ${match[1]}`);
-  const script = await readFile(file, 'utf8');
+  const script = (await readFile(file, 'utf8'))
+    .replaceAll('import.meta.resolve', 'undefined')
+    .replaceAll('import.meta.url', 'location.href');
   // A callback preserves literal $ patterns inside bundled code (e.g. QR regexes).
   new Script(script);
-  html = html.replace(match[0], () => `<script>window.ASTELLAS_ASSETS=${JSON.stringify(assetData)};</script><script>${script.replace(/<\/script/gi, '<\\/script')}</script>`);
+  html = html.replace(match[0], () => `<script>window.ASTELLAS_ASSETS=${JSON.stringify(assetData)};window.ASTELLAS_VISION_ASSETS=${JSON.stringify(visionData)};</script><script>${script.replace(/<\/script/gi, '<\\/script')}</script>`);
 }
 if (/<script\b[^>]*\bsrc=/.test(html)) throw new Error('Quedó un script externo en el export portable.');
 
