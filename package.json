@@ -1,0 +1,18 @@
+{
+  "name": "astrellas-multimedia-filtro",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "build:portable": "astro build && node scripts/build-portable.mjs",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "astro": "^7.4.0"
+  }
+}

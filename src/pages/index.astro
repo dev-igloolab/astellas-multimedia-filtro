@@ -1,0 +1,218 @@
+---
+import '../styles/global.css';
+import '../styles/design.css';
+---
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ed174b" />
+  <title>Astellas · Toma el control de tu menopausia</title>
+</head>
+<body>
+  <main class="viewport"><div class="stage" id="app"></div></main>
+  <script>
+    import { renderThermal } from '../thermal.js';
+    const app = document.querySelector('#app');
+    const state = { page: 'intro', resultIndex: 0, consent: false, assetsReady: false, assetsError: false, assetsLoading: false, photo: '', stream: null, age: '', frequency: '', feelings: new Set(), zones: new Set(), timer: null };
+    const iconNames = [
+      'bienestar-mental', 'brazos-piernas', 'calor-repentino', 'calor-termometro',
+      'cambios-animo', 'cara-cuello', 'concentracion', 'continuar-abajo',
+      'grupo-mujeres', 'imagen', 'inicio', 'listo', 'pecho-espalda', 'repetir',
+      'sofoco', 'sudoracion-nocturna', 'todo-cuerpo'
+    ];
+    const staticAssets = Object.fromEntries([
+      ...iconNames.map(name => [name, `/assets/iconos/${name}.webp`]),
+      ['logo', '/assets/logos/astellas-blanco.webp'],
+      ['logoColor', '/assets/logos/astellas-color.webp'],
+      ['background', '/assets/fondos/inicio.webp'],
+      ['qr', '/assets/qr/menopausia-figma.svg']
+    ]);
+    const imageCache = new Map();
+    const assetUrl = name => imageCache.get(name)?.url || window.ASTELLAS_ASSETS?.[name] || staticAssets[name];
+    function warmAsset(name) {
+      if (imageCache.has(name)) return imageCache.get(name).ready;
+      const entry = { url: '', image: null, ready: null };
+      entry.ready = (async () => {
+        const response = await fetch(window.ASTELLAS_ASSETS?.[name] ?? staticAssets[name]);
+        if (!response.ok) throw new Error(`No se pudo descargar ${name}`);
+        entry.url = URL.createObjectURL(await response.blob());
+        const image = new Image();
+        image.decoding = 'sync';
+        await new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = () => reject(new Error(`No se pudo decodificar ${name}`));
+          image.src = entry.url;
+        });
+        if (image.decode) await image.decode();
+        entry.image = image;
+        return image;
+      })().catch(error => {
+        if (entry.url) URL.revokeObjectURL(entry.url);
+        imageCache.delete(name);
+        throw error;
+      });
+      imageCache.set(name, entry);
+      return entry.ready;
+    }
+    async function preloadAssets() {
+      if (state.assetsLoading) return;
+      state.assetsLoading = true;
+      state.assetsError = false;
+      const images = Object.keys(staticAssets).map(warmAsset);
+      const fonts = ['400 38px Anton', '400 38px "Myriad Variable Concept"', '700 38px "Myriad Variable Concept"']
+        .map(font => document.fonts.load(font, '¡¿ÁÉÍÓÚáéíóúñÑ'));
+      const results = await Promise.allSettled([...images, ...fonts, document.fonts.ready]);
+      state.assetsReady = results.every(result => result.status === 'fulfilled');
+      state.assetsError = !state.assetsReady;
+      state.assetsLoading = false;
+      if (state.assetsReady) {
+        app.style.setProperty('--intro-image', `url("${assetUrl('background')}")`);
+      }
+      if (state.assetsError) console.error('No se pudieron precargar todos los recursos.', results.filter(result => result.status === 'rejected'));
+      if (state.page === 'intro') render();
+    }
+    const icon = (name, extra = '') => `<span class="icon ${extra}" style="--image:url('${assetUrl(name)}')" aria-hidden="true"></span>`;
+    const logo = (colored = false) => `<img class="logo" src="${assetUrl(colored ? 'logoColor' : 'logo')}" alt="Astellas">`;
+    const head = (light = false) => `<header class="header ${light ? 'light' : ''}">${logo(light)}<button class="home" data-action="home" aria-label="Ir al inicio">${icon('inicio')}</button></header>`;
+    const cta = (label = 'SIGUIENTE', disabled = false, action = 'next') => `<button class="cta" data-action="${action}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+    const items = {
+      age: [['30-40','Entre los 30 a 40 años'],['40-55','Entre los 40 a 55 años'],['55-60','Entre los 55 a 60 años'],['60+','+ de 60 años']],
+      frequency: [['never','Nunca'],['sometimes','Ocasionalmente'],['often','Varias veces al día']],
+      feelings: [['calor','Calor repentino'],['sudor','Sudoración'],['interrumpe','Interrumpe mis actividades'],['todas','Todas las anteriores'],['ambas','A y B']],
+      zones: [['cara','Cara y cuello','cara-cuello'],['pecho','Pecho y espalda','pecho-espalda'],['cuerpo','Todo el cuerpo','todo-cuerpo'],['extremidades','Brazos y piernas','brazos-piernas']]
+    };
+    const choices = (group) => items[group].map(([value,label],i) => {
+      const selected = group === 'age' || group === 'frequency' ? state[group] === value : state[group].has(value);
+      return `<button class="choice ${selected ? 'selected' : ''}" data-action="select" data-group="${group}" data-value="${value}" aria-pressed="${selected}"><b>${String.fromCharCode(65+i)}.</b><span>${label}</span></button>`;
+    }).join('');
+    const resultVariants = [
+      {
+        kind: 'none', title: '¡Enhorabuena!<br>Nos has indicado que aún no<br>presentas síntomas vasomotores<sup>1,2</sup>',
+        intro: 'Sin embargo, es importante que visites a tu<br>médico para realizar un seguimiento y así evitar<br>que los efectos de la menopausia<br><strong>TOMEN EL CONTROL.<sup>1,2</sup></strong>',
+        heading: 'Presta atención si:',
+        resource: 'Infórmate y descubre alternativas innovadoras que pueden ayudarte a vivir la menopausia con mayor tranquilidad y bienestar.<sup>1,2</sup>'
+      },
+      {
+        kind: 'mild', title: 'Tu mapa de calor indica que<br>presentas síntomas vasomotores:<br><em>LEVES<sup>1,4</sup></em>',
+        intro: 'Sin embargo, es importante que visites a tu<br>médico para realizar un seguimiento y así evitar<br>que los efectos de la menopausia<br><strong>TOMEN EL CONTROL.<sup>1,2</sup></strong>',
+        heading: 'Presta atención si:',
+        resource: 'Infórmate y descubre alternativas innovadoras que pueden ayudarte a vivir la menopausia con mayor tranquilidad y bienestar.<sup>1,2</sup>'
+      },
+      {
+        kind: 'moderate', title: 'Tu mapa de calor indica que<br>presentas síntomas vasomotores:<br><em>MODERADOS<sup>1,4</sup></em>',
+        intro: 'Si las oleadas de calor están interfiriendo<br>con tu descanso, tu energía o tu bienestar:<br><strong>NO LOS IGNORES.<sup>1,3</sup></strong>',
+        heading: 'Síntomas como:',
+        resource: 'Infórmate, conversa con tu médico y descubre alternativas innovadoras que pueden ayudarte a vivir la menopausia con mayor tranquilidad y bienestar.<sup>1,2</sup>'
+      },
+      {
+        kind: 'severe', title: 'Tu mapa de calor indica que<br>presentas síntomas vasomotores:<br><em>SEVEROS<sup>1,4</sup></em>',
+        intro: 'Si las oleadas de calor están interfiriendo<br>con tu descanso, tu energía o tu bienestar:<br><strong>NO LOS IGNORES<sup>1,3</sup></strong>',
+        resource: 'Acude a tu médico, empieza a darle un seguimiento a tus síntomas y EVITA que la menopausia tome el control de tu vida.<sup>1,2</sup>'
+      }
+    ];
+    const attentionItems = [
+      ['calor-repentino', 'Las oleadas de calor aumentan<sup>1,2</sup>'],
+      ['sudoracion-nocturna', 'Tu sueño se ve alterado<sup>1,2</sup>'],
+      ['cambios-animo', 'Cambias de ánimo repentinamente<sup>1,2,3</sup>'],
+      ['concentracion', 'No te puedes concentrar<sup>2,3</sup>']
+    ];
+    const resultLegal = '<strong>1.</strong> Thurston RC. Vasomotor symptoms. In: Crandall CJ, Bachman GA, Faubion SS, et al., eds. Menopause Practice: A Clinician’s Guide. 6th ed. Pepper Pike, OH: The North American Menopause Society, 2019:43-55. <strong>2.</strong> Monteleone P, Mascagni G, Giannini A, Genazzani AR, Simoncini T. Symptoms of menopause - global prevalence, physiology and implications. Nat Rev Endocrinol 2018;14(4):199-215. <strong>3.</strong> Williams RE, Levine KB, Kalilani L, Lewis J, Clark RV. Menopause-specific questionnaire assessment in US population-based study shows negative impact on health-related quality of life. Maturitas 2009;62(2):153-9. <strong>4.</strong> Islam RM, Bond M, Ghalbelaghi A, Wang Y, Walker-Bone K, Davis SR. Prevalence and severity of symptoms across the menopause transition: cross-sectional findings from the Australian Women’s Midlife Years (AMY) Study. Lancet Diabetes Endocrinol 2025;13(9):765-76.';
+    function resultCard(variant) {
+      const { kind, heading, resource } = variant;
+      const content = kind === 'none' || kind === 'mild'
+        ? `<h2>${heading}</h2><ul class="result-list">${attentionItems.map(([image, label]) => `<li>${icon(image)}<span>${label}</span></li>`).join('')}</ul>`
+        : kind === 'moderate'
+          ? `<h2>${heading}</h2><div class="result-feature">${icon('calor-termometro')}<p>Sofocos, oleadas de calor y alteración en el sueño pueden afectar hasta el <strong>75%</strong> de las mujeres durante la menopausia.<sup>1,2,4</sup></p></div><p class="result-message">Reconocer lo que estás sintiendo es el primer paso para tomar el control.</p>`
+          : `<div class="result-feature">${icon('bienestar-mental')}<p>Reconocer lo que estás sintiendo es el primer paso para tomar el control.</p></div><p class="result-message">Pero <strong>NO TE PREOCUPES,</strong> esto no significa que tengas que resignarte a vivir con ellos.<sup>1,2</sup></p>`;
+      return `<div class="result-card">${content}<div class="result-footer"><div class="result-resource"><a class="result-qr" href="https://link.igloolab.co/2a0fff" target="_blank" rel="noopener noreferrer" aria-label="Abrir recursos sobre menopausia"><img src="${assetUrl('qr')}" alt="Código QR para consultar recursos sobre menopausia"></a><p>${resource}</p></div>${cta('SIGUIENTE')}<p class="result-legal">${resultLegal}</p></div></div>`;
+    }
+    function render() {
+      app.className = `stage page-${state.page}`;
+      switch(state.page) {
+        case 'intro': app.innerHTML = `<section class="screen intro">${logo()}<div class="intro-center"><h1>¿Tu menopausia te controla?</h1><div class="line"></div><p>Te invitamos a realizar este test para descubrir qué tanto conoces y escuchas a tu cuerpo durante esta etapa.</p>${cta(state.assetsLoading ? 'CARGANDO...' : 'INICIAR',!state.consent||!state.assetsReady)}</div><div class="intro-footer"><label class="consent"><input id="consent" type="checkbox" ${state.consent ? 'checked' : ''}><span>Al participar en esta experiencia, autorizo la captura y uso de mi fotografía exclusivamente para el desarrollo y visualización de la experiencia interactiva. Entiendo que mi imagen será utilizada para<br>generar la visualización térmica personalizada y no para otros fines distintos a los aquí descritos.</span></label><div class="legal"><strong>MAT-CO-VEO-2026-00024</strong><p>Campaña educativa de orientación general. No sustituye la consulta médica ni sirve para tratar condiciones de salud. Ante síntomas o dudas, consulte a su médico. Para notificar un evento adverso o cualquier situación relacionada con la seguridad de un producto de Astellas, contáctenos en: safetyco@astellas.com</p></div></div></section>`; break;
+        case 'instructions': app.innerHTML = `<section class="screen red">${head()}<div class="center instructions">${icon('listo','check')}<h1>¿Estás lista?</h1><p>Sigue estos pasos:</p><ol><li><b>1.</b><span>Ubícate frente a la cámara,<br>dejando tus hombros dentro del encuadre.</span></li><li><b>2.</b><span>Procura que tu rostro se<br>vea con claridad.</span></li><li><b>3.</b><span>¡Y listo!, prepárate para<br>comenzar esta experiencia.</span></li></ol></div>${cta()}</section>`; break;
+        case 'camera':
+          app.innerHTML = `<section class="screen camera">
+            <div class="preview">
+              <video id="video" autoplay playsinline muted></video>
+              ${state.photo ? `<img src="${state.photo}" alt="Foto capturada">` : ''}
+              <div class="face-frame" aria-hidden="true"><span class="corner top-left"></span><span class="corner top-right"></span><span class="corner bottom-left"></span><span class="corner bottom-right"></span></div>
+              <div class="capture-bar">
+                <div class="thumbnail">${state.photo ? `<img src="${state.photo}" alt="Miniatura de la foto">` : '<video id="thumbnail-video" autoplay playsinline muted aria-hidden="true"></video>'}</div>
+              <button class="shutter" data-action="capture"><span>TOMAR</span></button>
+                <button class="retake" data-action="retake" aria-label="Repetir foto">${icon('repetir')}</button>
+              </div>
+            </div>
+            <div class="camera-heading"><h1>¡Cada mujer es diferente!</h1><button class="home" data-action="home" aria-label="Ir al inicio">${icon('inicio')}</button></div>
+            <div class="camera-info">
+              <h2>Por eso esta activación será<br>100% PERSONALIZADA</h2>
+              <p>Tómate una foto y déjanos conocerte.</p>
+              <p class="camera-error" id="camera-error"></p>
+              ${cta('SIGUIENTE',!state.photo)}
+            </div>
+          </section>`;
+          if (!state.photo) startCamera();
+          break;
+        case 'countdown': app.innerHTML = `<section class="screen countdown">${state.photo ? `<img class="countdown-photo" src="${state.photo}" alt="">` : ''}${head()}<div class="center">${icon('imagen','large-icon')}<h1>Evaluando la fotografía.</h1><p>Tu resultado completo<br>aparecerá pronto</p>${icon('continuar-abajo','chevrons')}<div class="count" id="count"><span>3</span><i class="count-dot" aria-hidden="true"></i></div></div></section>`; break;
+        case 'age': app.innerHTML = `<section class="screen peach">${head(true)}<div class="center">${icon('grupo-mujeres','large-icon')}<h1>¿En qué rango de edad<br>te encuentras?</h1><div class="choices">${choices('age')}</div></div>${cta('SIGUIENTE',!state.age)}</section>`; break;
+        case 'frequency': app.innerHTML = `<section class="screen amber">${head()}<div class="center">${state.photo ? `<img class="avatar" src="${state.photo}" alt="Tu foto">` : ''}<h1>Bienvenida</h1><p>¡Es momento de cambiar la conversación sobre la menopausia y pasar de los prejuicios al control!</p><div class="dark-card"><h2>¿Con qué frecuencia sientes sofocos<br>o episodios repentinos de calor?</h2><div class="choices">${choices('frequency')}</div></div></div>${cta('SIGUIENTE',!state.frequency)}</section>`; break;
+        case 'feelings': app.innerHTML = `<section class="screen amber">${head()}<div class="center"><div class="dark-card">${icon('sofoco','large-icon')}<h1>¿Qué sientes<br>cuando aparece el<br>sofoco?</h1><div class="choices">${choices('feelings')}</div></div></div>${cta('SIGUIENTE',!state.feelings.size)}</section>`; break;
+        case 'zones': app.innerHTML = `<section class="screen red">${head()}<div class="center"><h1>¿En qué parte de tu<br>cuerpo sientes con mayor<br>frecuencia los sofocos?</h1><div class="zone-grid">${items.zones.map(([value,label,image],i) => `<button class="zone ${state.zones.has(value) ? 'selected' : ''}" data-action="select" data-group="zones" data-value="${value}" aria-pressed="${state.zones.has(value)}">${icon(image)}<span><b>${String.fromCharCode(65+i)}.</b> ${label}</span></button>`).join('')}</div></div>${cta('SIGUIENTE')}</section>`; break;
+        case 'result': {
+          const variant = resultVariants[state.resultIndex];
+          app.innerHTML = `<section class="screen peach result-screen ${variant.kind}">${head(true)}<div class="result"><h1>${variant.title}</h1><p class="result-intro">${variant.intro}</p>${resultCard(variant)}</div></section>`;
+          break;
+        }
+        case 'map': app.innerHTML = `<section class="screen red map">${head()}<h1>¡ESTE ES TU MAPA DE CALOR!</h1><div class="final-photo"><canvas id="thermal-map" role="img" aria-label="Visualización térmica ilustrativa de tu fotografía"></canvas><p>Reconocer y tratar tus síntomas es el primer paso para cuidar de ti y de tu salud futura.</p></div><div class="map-copy">Consulta a tu médico y<br><strong>TOMA EL CONTROL DE TU MENOPAUSIA</strong></div>${cta('VOLVER AL INICIO',false,'home')}</section>`; if(state.photo) renderThermal(state.photo,state.zones,document.querySelector('#thermal-map')).catch(console.error); break;
+      }
+      if (state.page === 'intro' && state.assetsError) {
+        const retry = app.querySelector('.intro .cta');
+        retry.textContent = 'REINTENTAR CARGA';
+        retry.dataset.action = 'retry-assets';
+        retry.disabled = false;
+      }
+    }
+    function stopCamera() { state.stream?.getTracks().forEach(t => t.stop()); state.stream = null; }
+    async function startCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) { cameraError('La cámara no está disponible en este navegador.'); return; }
+      try { const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280}},audio:false}); if(state.page !== 'camera') { stream.getTracks().forEach(t=>t.stop()); return; } state.stream = stream; document.querySelector('#video').srcObject=stream; document.querySelector('#thumbnail-video').srcObject=stream; }
+      catch { cameraError('Activa el permiso de cámara y pulsa repetir.'); }
+    }
+    function cameraError(text) { const el=document.querySelector('#camera-error'); if(el) el.textContent=text; }
+    function capture() {
+      const video=document.querySelector('#video'); if(!video?.videoWidth) { cameraError('Espera a que la cámara esté lista.'); return; }
+      const canvas=document.createElement('canvas'); canvas.width=900; canvas.height=1200;
+      const width=Math.min(video.videoWidth,video.videoHeight*.75),height=width/.75;
+      const ctx=canvas.getContext('2d'); ctx.translate(canvas.width,0); ctx.scale(-1,1); ctx.drawImage(video,(video.videoWidth-width)/2,(video.videoHeight-height)/2,width,height,0,0,canvas.width,canvas.height);
+      state.photo=canvas.toDataURL('image/webp',.9); stopCamera(); render();
+    }
+    function navigate(page) {
+      if(state.timer) clearInterval(state.timer); state.timer=null; if(page!=='camera') stopCamera(); state.page=page; render();
+      if(page==='countdown') { let n=3; state.timer=setInterval(()=>{n--; const el=document.querySelector('#count span'); if(el) el.textContent=String(n); if(n===0) navigate('age');},850); }
+    }
+    function next() { if(state.page==='intro'&&(!state.consent||!state.assetsReady))return; if(state.page==='result') { if(state.resultIndex<resultVariants.length-1) { state.resultIndex++; render(); } else navigate('map'); return; } const routes={intro:'instructions',instructions:'camera',camera:'countdown',age:'frequency',frequency:'feelings',feelings:'zones',zones:'result'}; if(state.page==='zones')state.resultIndex=0; if(routes[state.page]) navigate(routes[state.page]); }
+    app.addEventListener('click',event=>{
+      const button=event.target.closest('[data-action]'); if(!button) return;
+      const {action,group,value}=button.dataset;
+      if(action==='retry-assets') { state.assetsError=false; render(); preloadAssets(); }
+      if(action==='home') { state.consent=false;state.photo='';state.age='';state.frequency='';state.resultIndex=0;state.feelings.clear();state.zones.clear();navigate('intro'); }
+      if(action==='next') next();
+      if(action==='capture') { if(state.photo) { stopCamera(); state.photo=''; navigate('camera'); } else capture(); }
+      if(action==='retake') {stopCamera();state.photo='';navigate('camera');}
+      if(action==='select') { if(group==='age'||group==='frequency') state[group]=value; else {const selected=state[group];selected.has(value)?selected.delete(value):selected.add(value);} render(); }
+    });
+    app.addEventListener('change',event=>{if(event.target.id==='consent'){state.consent=event.target.checked;render();}});
+    const viewport = document.querySelector('.viewport');
+    const fitStage = () => {
+      const { width, height } = viewport.getBoundingClientRect();
+      document.documentElement.style.setProperty('--stage-scale', String(Math.min(width / 1080, height / 1920)));
+    };
+    fitStage();
+    new ResizeObserver(fitStage).observe(viewport);
+    render();
+    preloadAssets();
+  </script>
+</body>
+</html>
