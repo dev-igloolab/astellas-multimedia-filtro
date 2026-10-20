@@ -12,10 +12,12 @@ const smoothstep = (low, high, value) => {
 
 // Un tono por severidad en todas las zonas: amarillo, morado y magenta.
 const heatPalettes = {
-  1: { edge: [242, 151, 20], core: [255, 205, 16], opacity: .76 },
-  2: { edge: [115, 35, 166], core: [177, 11, 207], opacity: .80 },
-  3: { edge: [184, 23, 110], core: [237, 5, 133], opacity: .82 },
+  1: { edge: [242, 151, 20], core: [255, 205, 16] },
+  2: { edge: [102, 22, 156], core: [155, 6, 202] },
+  3: { edge: [232, 73, 13], core: [255, 173, 7] },
 };
+const heatOpacity = .84;
+const lightResponse = .35;
 
 export function trackedSpots(landmarks, image, zone) {
   const width = image.width;
@@ -37,15 +39,15 @@ export function trackedSpots(landmarks, image, zone) {
     const ears = midpoint(point(7), point(8));
     const faceWidth = Math.max(size(point(7), point(8)), shoulderWidth * .32);
     const faceHeight = Math.max(size(eyes, mouth) * 2.5, faceWidth * .8);
-    const cheeks = along(eyes, mouth, .48);
-    add('cara', { x: eyes.x, y: eyes.y - Math.min(faceHeight * .40, faceWidth * .36) / height }, faceWidth * .25, Math.min(faceHeight * .12, faceWidth * .12), .68);
-    add('cara', { x: cheeks.x - faceWidth * .32 / width, y: cheeks.y }, faceWidth * .16, Math.min(faceHeight * .13, faceWidth * .12), .67, -.18);
-    add('cara', { x: cheeks.x + faceWidth * .32 / width, y: cheeks.y }, faceWidth * .16, Math.min(faceHeight * .13, faceWidth * .12), .67, .18);
+    const cheeks = along(eyes, mouth, .44);
+    add('cara', { x: eyes.x, y: eyes.y - Math.min(faceHeight * .40, faceWidth * .38) / height }, faceWidth * .30, Math.min(faceHeight * .14, faceWidth * .14), .68);
+    add('cara', { x: cheeks.x - faceWidth * .32 / width, y: cheeks.y }, faceWidth * .19, Math.min(faceHeight * .14, faceWidth * .14), .67, -.18);
+    add('cara', { x: cheeks.x + faceWidth * .32 / width, y: cheeks.y }, faceWidth * .19, Math.min(faceHeight * .14, faceWidth * .14), .67, .18);
     if (shouldersReady) {
       const shoulderCenter = midpoint(leftShoulder, rightShoulder);
-      add('cara', along(mouth, shoulderCenter, .58), faceWidth * .23, Math.min(faceHeight * .32, faceWidth * .40), .62);
+      add('cara', along(mouth, shoulderCenter, .80), faceWidth * .23, Math.min(faceHeight * .32, faceWidth * .40), .62);
     } else {
-      add('cara', along(mouth, ears, -.32), faceWidth * .23, Math.min(faceHeight * .27, faceWidth * .38), .58);
+      add('cara', along(mouth, ears, -.70), faceWidth * .23, Math.min(faceHeight * .27, faceWidth * .38), .58);
     }
   }
 
@@ -120,15 +122,18 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
   const frame = context.getImageData(0, 0, width, height);
   const pixels = frame.data;
   const heat = new Float32Array(width * height);
-  for (const [cx, cy, rx, ry, strength, angle = 0, group] of spots) {
+  const luma = ([red, green, blue]) => red * .2126 + green * .7152 + blue * .0722;
+  const edgeLuma = luma(palette.edge), coreLuma = luma(palette.core);
+  for (const [spotIndex, [cx, cy, rx, ry, strength, angle = 0, group]] of spots.entries()) {
     const falloff = group === 'pecho' ? 1.2 : group === 'cara' ? 1.2 : 1.5;
+    const seed = spotIndex * 2.4;
     const centerX = offsetX + cx * image.width * scale;
     const centerY = offsetY + cy * image.height * scale;
     const radiusX = rx * image.width * scale;
     const radiusY = ry * image.height * scale;
     const cosine = Math.cos(angle), sine = Math.sin(angle);
-    const reachX = Math.hypot(radiusX * cosine, radiusY * sine) * 2;
-    const reachY = Math.hypot(radiusX * sine, radiusY * cosine) * 2;
+    const reachX = Math.hypot(radiusX * cosine, radiusY * sine) * 2.3;
+    const reachY = Math.hypot(radiusX * sine, radiusY * cosine) * 2.3;
     const left = Math.max(0, Math.floor(centerX - reachX));
     const right = Math.min(width, Math.ceil(centerX + reachX));
     const top = Math.max(0, Math.floor(centerY - reachY));
@@ -139,8 +144,13 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
         const localX = (dx * cosine + dy * sine) / radiusX;
         const localY = (-dx * sine + dy * cosine) / radiusY;
         const distance = localX * localX + localY * localY;
-        if (distance > 4) continue;
-        const glow = Math.exp(-falloff * distance) * strength;
+        if (distance > 5.29) continue;
+        // Ondulaciones amplias y una aureola tenue rompen el óvalo uniforme sin crear bordes duros.
+        const contour = 1 + .14 * Math.sin(localX * 2.3 + localY * 1.2 + seed)
+          + .10 * Math.sin(localY * 3.4 - localX * 1.1 - seed * 1.3);
+        const shapedDistance = distance * contour;
+        const glow = strength * (.72 * Math.exp(-falloff * shapedDistance)
+          + .28 * Math.exp(-falloff * .48 * shapedDistance));
         const index = y * width + x;
         heat[index] = 1 - (1 - heat[index]) * (1 - glow);
       }
@@ -149,22 +159,26 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const warmth = heat[y * width + x];
-      if (warmth < .025) continue;
+      if (warmth < .003) continue;
       const sourceX = (x - offsetX) / (image.width * scale);
       const sourceY = (y - offsetY) / (image.height * scale);
       if (sourceX < 0 || sourceX > 1 || sourceY < 0 || sourceY > 1) continue;
       const person = smoothstep(.22, .76, maskConfidence(mask, sourceX, sourceY));
-      // Centro saturado, bordes difusos y relieve de la foto visible bajo el color.
-      const alpha = palette.opacity * (1 - Math.exp(-3 * warmth))
-        * smoothstep(.015, .12, warmth) * person;
-      if (alpha < .004) continue;
-      const core = smoothstep(.08, .80, warmth);
       const index = (y * width + x) * 4;
-      const luminance = pixels[index] * .2126 + pixels[index + 1] * .7152 + pixels[index + 2] * .0722;
-      const shade = Math.max(.88, Math.min(1.12, .95 + (luminance - 135) * .0012));
+      const red = pixels[index], green = pixels[index + 1], blue = pixels[index + 2];
+      const luminance = red * .2126 + green * .7152 + blue * .0722;
+      const skinAffinity = .58 + .42 * smoothstep(-4, 18, red - green) * smoothstep(-6, 16, green - blue);
+      const surface = skinAffinity * smoothstep(15, 58, luminance);
+      // Una veladura suave conserva la luz y la textura; el pelo recibe menos color.
+      const alpha = Math.min(heatOpacity, heatOpacity * 1.06 * (1 - Math.exp(-3.2 * warmth)))
+        * smoothstep(.003, .11, warmth) * person * surface;
+      if (alpha < .004) continue;
+      const core = smoothstep(.12, .85, warmth);
+      const tintLuma = edgeLuma + (coreLuma - edgeLuma) * core;
       for (let channel = 0; channel < 3; channel++) {
-        const color = (palette.edge[channel] + (palette.core[channel] - palette.edge[channel]) * core) * shade;
-        pixels[index + channel] = pixels[index + channel] * (1 - alpha) + color * alpha;
+        const color = palette.edge[channel] + (palette.core[channel] - palette.edge[channel]) * core;
+        const tint = color + (luminance - tintLuma) * lightResponse;
+        pixels[index + channel] = pixels[index + channel] * (1 - alpha) + tint * alpha;
       }
     }
   }

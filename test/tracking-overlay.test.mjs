@@ -57,10 +57,13 @@ test('El mapa completo conserva zonas separadas para rostro, pecho y brazos', ()
   assert.ok(face[2][0] - face[2][2] > face[0][0], 'el calor del cachete derecho no cubre el centro de la nariz');
   assert.ok(face[0][2] * image.width > face[0][3] * image.height, 'la frente sigue una forma horizontal');
   assert.ok(face[0][1] + face[0][3] < .2, 'la frente queda por encima de los ojos');
+  assert.ok(face[0][1] > .16 && face[0][1] < .19, 'la frente queda sobre la piel, debajo del nacimiento del pelo');
   assert.ok(face[1][1] - face[1][3] > .2, 'el calor del cachete no llega a los ojos');
   assert.ok(face[1][1] + face[1][3] < .28, 'el calor del cachete no llega a la boca');
+  assert.ok(face[1][1] > .23 && face[1][1] < .25 && face[2][1] > .23 && face[2][1] < .25, 'ambas mejillas quedan entre ojos y boca');
   assert.ok(face[1][3] * image.height < face[1][2] * image.width, 'el cachete ocupa menos alto');
   assert.ok(face[3][1] > .32, 'el calor del cuello queda debajo de la mandíbula');
+  assert.ok(face[3][1] > .33, 'el centro del cuello queda más abajo');
   assert.ok(face.every(spot => spot[6] === 'cara'));
   assert.ok(chest.every(spot => spot[6] === 'pecho'));
   assert.ok(chest[0][2] < .1, 'el calor del pecho no llega hasta ambos brazos');
@@ -100,19 +103,28 @@ test('El seguimiento dibuja solo las guías de las zonas de calor visibles', () 
   assert.equal(strokes, 2);
 });
 
-test('La guía muestra frente, dos cachetes, cuello, pecho, brazos y antebrazos', () => {
+test('La guía agrupa rostro y cuello, ensancha el pecho y separa brazos y antebrazos', () => {
   const points = Array.from({ length: 33 }, () => ({ x: 0, y: 0, visibility: 0 }));
   const set = (index, x, y) => { points[index] = { x, y, visibility: 1 }; };
   [[2, .46, .2], [5, .54, .2], [7, .42, .22], [8, .58, .22], [9, .48, .28], [10, .52, .28],
     [11, .4, .35], [12, .6, .35], [13, .36, .48], [14, .64, .48], [15, .35, .63], [16, .65, .63],
     [23, .43, .75], [24, .57, .75]].forEach(([index, x, y]) => set(index, x, y));
   let strokes = 0;
+  const guides = [];
   const context = {
-    clearRect() {}, save() {}, restore() {}, beginPath() {}, moveTo() {}, lineTo() {},
+    clearRect() {}, save() {}, restore() {}, beginPath() { guides.push([]); },
+    moveTo(x, y) { guides.at(-1).push([x, y]); }, lineTo() {},
     stroke() { strokes++; },
   };
   const canvas = { clientWidth: 450, clientHeight: 600, width: 0, height: 0, getContext: () => context };
   const frame = { videoWidth: 900, videoHeight: 1600, cropWidth: 900, cropHeight: 1600, cropLeft: 0, cropTop: 0 };
   assert.deepEqual(drawTrackingOverlay(canvas, points, frame), ['cara', 'pecho', 'brazos']);
-  assert.equal(strokes, 18);
+  assert.equal(guides.length, 6, 'una guía de rostro y cuello, una de pecho y cuatro de brazos');
+  assert.equal(strokes, 12);
+  const bounds = guide => {
+    const xs = guide.map(([x]) => x), ys = guide.map(([, y]) => y);
+    return { width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+  };
+  assert.ok(bounds(guides[0]).height > bounds(guides[2]).height * 2, 'rostro y cuello comparten un marco alto');
+  assert.ok(bounds(guides[1]).width > bounds(guides[1]).height * 2, 'el pecho usa un marco horizontal');
 });
