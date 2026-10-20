@@ -1,0 +1,117 @@
+<!-- Este bloque debe llegar antes de los recursos grandes del portable. -->
+<style is:inline>
+  .boot-screen, .boot-screen * { box-sizing: border-box; }
+  .boot-screen { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #201818; color: #ffd8c4; opacity: 1; transition: opacity 450ms cubic-bezier(.22,1,.36,1); }
+  .boot-panel { box-sizing: border-box; position: relative; width: min(100vw,56.25vh); width: min(100vw,56.25dvh); height: 100%; max-height: 177.7778vw; overflow: hidden; container-type: inline-size; background: radial-gradient(ellipse at 50% 46%,#613022 0%,#431d15 65%); }
+  .boot-logo { position: absolute; top: 8cqw; left: 6cqw; width: 34cqw; height: auto; }
+  .boot-content { position: absolute; top: 50%; left: 11%; width: 78%; transform: translateY(-48%); text-align: center; }
+  .boot-orbit { position: relative; width: 17cqw; height: 17cqw; margin: 0 auto 8cqw; border: .35cqw solid #ffb75545; border-radius: 50%; }
+  .boot-orbit::before { content: ''; position: absolute; inset: -.35cqw; border: .65cqw solid transparent; border-top-color: #ffb755; border-right-color: #ffb755; border-radius: 50%; animation: boot-turn 1.6s linear infinite; }
+  .boot-orbit::after { content: ''; position: absolute; inset: 5.5cqw; border-radius: 50%; background: #ffb755; box-shadow: 0 0 6cqw #ffb75540; }
+  .boot-title { margin: 0; color: #ffb755; font: 400 7.6cqw/1.08 Anton, sans-serif; }
+  .boot-message { min-height: 2.5em; margin: 3cqw auto 6cqw; color: #ffd8c4; font: 400 4cqw/1.3 'Myriad Variable Concept', sans-serif; }
+  .boot-progress { height: .9cqw; overflow: hidden; border-radius: 1cqw; background: #ffd8c426; }
+  .boot-fill { display: block; width: 100%; height: 100%; border-radius: inherit; background: #ffb755; transform: scaleX(0); transform-origin: left; transition: transform 240ms ease-out; }
+  .boot-progress:not([aria-valuenow]) .boot-fill { width: 35%; transform: none; animation: boot-travel 1.5s ease-in-out infinite; }
+  .boot-value { display: block; min-height: 1.3em; margin-top: 2.5cqw; color: #ffd8c4; font: 400 3.4cqw/1.3 'Myriad Variable Concept', sans-serif; font-variant-numeric: tabular-nums; }
+  .boot-retry { border: 0; border-radius: 9cqw; padding: 2.4cqw 9cqw; margin-top: 5cqw; background: #ffb755; color: #431d15; cursor: pointer; font: 400 4.5cqw/1.2 Anton, sans-serif; }
+  .boot-retry[hidden] { display: none; }
+  .boot-retry:focus-visible { outline: .5cqw solid #ffd8c4; outline-offset: 1cqw; }
+  .boot-screen[data-state="error"] .boot-orbit::before { animation: none; border-color: #ffb75545; }
+  .boot-screen[data-state="error"] .boot-fill { animation: none; }
+  .boot-screen[data-state="leaving"] { opacity: 0; }
+  .boot-screen[data-state="leaving"] .boot-orbit::before { animation: none; }
+  .boot-noscript { position: absolute; bottom: 8cqw; left: 8%; width: 84%; font: 400 4cqw/1.3 sans-serif; text-align: center; }
+  @keyframes boot-turn { to { transform: rotate(360deg); } }
+  @keyframes boot-travel { from { transform: translateX(-110%); } to { transform: translateX(390%); } }
+  @media (prefers-reduced-motion: reduce) {
+    .boot-screen { transition-duration: 120ms; }
+    .boot-orbit::before, .boot-progress:not([aria-valuenow]) .boot-fill { animation: none; }
+    .boot-fill { transition: none; }
+  }
+</style>
+<section class="boot-screen" id="boot-screen" aria-labelledby="boot-title" aria-busy="true">
+  <div class="boot-panel">
+    <img class="boot-logo" src="/assets/logos/astellas-blanco.webp" alt="Astellas" width="955" height="261" loading="eager" />
+    <div class="boot-content">
+      <div class="boot-orbit" aria-hidden="true"></div>
+      <h1 class="boot-title" id="boot-title">Preparando tu<br />experiencia</h1>
+      <p class="boot-message" id="boot-message" role="status">Un momento, estamos preparando<br />todo para ti.</p>
+      <div class="boot-progress" id="boot-progress" role="progressbar" aria-label="Preparación de la experiencia" aria-valuemin="0" aria-valuemax="100"><span class="boot-fill" id="boot-fill"></span></div>
+      <span class="boot-value" id="boot-value" aria-hidden="true">Cargando…</span>
+      <button class="boot-retry" id="boot-retry" type="button" hidden>REINTENTAR</button>
+    </div>
+    <noscript><p class="boot-noscript">Activa JavaScript para abrir la experiencia.</p></noscript>
+  </div>
+</section>
+<script is:inline>
+  (() => {
+    const screen = document.getElementById('boot-screen');
+    const progress = document.getElementById('boot-progress');
+    const fill = document.getElementById('boot-fill');
+    const value = document.getElementById('boot-value');
+    const message = document.getElementById('boot-message');
+    const retry = document.getElementById('boot-retry');
+    let retryAction = () => location.reload();
+    retry.addEventListener('click', () => retryAction());
+    const fail = () => {
+      if (!screen.isConnected) return;
+      screen.dataset.state = 'error';
+      screen.setAttribute('aria-busy', 'false');
+      message.textContent = 'No pudimos cargar todo. Intenta de nuevo.';
+      value.textContent = 'Carga incompleta';
+      retry.hidden = false;
+    };
+    const onError = event => {
+      if (event.target?.tagName === 'SCRIPT' || event.error) fail();
+    };
+    window.addEventListener('error', onError, true);
+    window.ASTELLAS_BOOT = {
+      begin(onRetry) {
+        retryAction = onRetry;
+        screen.dataset.state = 'loading';
+        screen.setAttribute('aria-busy', 'true');
+        retry.hidden = true;
+        message.textContent = 'Preparando imágenes y recursos…';
+        this.progress(0, 1);
+      },
+      progress(done, total) {
+        const percent = Math.min(100, Math.floor(done / total * 100));
+        progress.setAttribute('aria-valuenow', String(percent));
+        fill.style.transform = `scaleX(${percent / 100})`;
+        value.textContent = `${percent}%`;
+        if (percent >= 90 && percent < 100) message.textContent = 'Preparando los últimos detalles…';
+      },
+      fail,
+      async complete(onReveal) {
+        this.progress(1, 1);
+        message.textContent = 'Todo listo. Este momento es para ti.';
+        // Dar al navegador oportunidad de pintar el 100% antes del fundido.
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        onReveal?.();
+        screen.dataset.state = 'leaving';
+        const duration = parseFloat(getComputedStyle(screen).transitionDuration) * 1000;
+        await new Promise(resolve => {
+          const finish = event => {
+            if (event && event.target !== screen) return;
+            clearTimeout(timeout);
+            screen.removeEventListener('transitionend', finish);
+            resolve();
+          };
+          const timeout = setTimeout(() => finish(), duration + 80);
+          screen.addEventListener('transitionend', finish);
+        });
+        const viewport = document.querySelector('.viewport');
+        viewport.inert = false;
+        viewport.removeAttribute('aria-hidden');
+        if (screen.contains(document.activeElement)) {
+          const title = viewport.querySelector('h1');
+          if (title) { title.tabIndex = -1; title.focus({ preventScroll: true }); }
+        }
+        screen.remove();
+        window.removeEventListener('error', onError, true);
+        delete window.ASTELLAS_BOOT;
+      },
+    };
+  })();
+</script>

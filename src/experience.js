@@ -9,8 +9,16 @@ import {
 import { drawTrackingOverlay } from './tracking-overlay.js';
 import { visibleCaptureFrame } from './capture-frame.js';
 import { resultForAnswers } from './results.js';
+import {
+  createScreenMotion,
+  animateCount,
+  revealScreen,
+} from './screen-motion.js';
 import QRCode from 'qrcode';
+import { createSoundFeedback } from './sound.js';
 const app = document.querySelector('#app');
+const motion = createScreenMotion(app);
+const sound = createSoundFeedback();
 const state = {
   page: 'intro',
   resultIndex: 0,
@@ -34,18 +42,29 @@ async function preloadAssets() {
   if (state.assetsLoading) return;
   state.assetsLoading = true;
   state.assetsError = false;
+  const boot = window.ASTELLAS_BOOT;
+  boot?.begin(preloadAssets);
   const images = preloadImages();
   const fonts = [
     '400 38px Anton',
     '400 38px "Myriad Variable Concept"',
     '700 38px "Myriad Variable Concept"',
-  ].map((font) => document.fonts.load(font, '¡¿ÁÉÍÓÚáéíóúñÑ'));
-  const results = await Promise.allSettled([
-    ...images,
-    ...fonts,
-    document.fonts.ready,
-    prepareTracking(),
-  ]);
+  ].map(async (font) => {
+    const faces = await document.fonts.load(font, '¡¿ÁÉÍÓÚáéíóúñÑ');
+    if (!faces.length)
+      throw new Error(`No se pudo preparar la fuente: ${font}`);
+    return faces;
+  });
+  const tasks = [...images, ...fonts, document.fonts.ready, prepareTracking()];
+  let completed = 0;
+  const results = await Promise.allSettled(
+    tasks.map((task) =>
+      task.then((value) => {
+        boot?.progress(++completed, tasks.length);
+        return value;
+      }),
+    ),
+  );
   state.assetsReady = results.every((result) => result.status === 'fulfilled');
   state.assetsError = !state.assetsReady;
   state.assetsLoading = false;
@@ -57,7 +76,13 @@ async function preloadAssets() {
       'No se pudieron precargar todos los recursos.',
       results.filter((result) => result.status === 'rejected'),
     );
-  if (state.page === 'intro') render();
+  if (state.page === 'intro') {
+    render();
+    if (state.assetsReady) {
+      if (boot) await boot.complete(() => revealScreen(app));
+      else revealScreen(app);
+    } else boot?.fail();
+  }
 }
 const icon = (name, extra = '') =>
   `<span class="icon ${extra}" style="--image:url('${assetUrl(name)}')" aria-hidden="true"></span>`;
@@ -166,6 +191,7 @@ function resultCard(variant) {
   return `<div class="result-card">${content}<div class="result-footer"><div class="result-resource"><a class="result-qr" href="https://link.igloolab.co/2a0fff" target="_blank" rel="noopener noreferrer" aria-label="Abrir recursos sobre menopausia"><img src="${assetUrl('qr')}" alt="Código QR para consultar recursos sobre menopausia"></a><p>${resource}</p></div>${cta('SIGUIENTE')}<p class="result-legal">${resultLegal}</p></div></div>`;
 }
 function render() {
+  let ready;
   app.className = `stage page-${state.page}`;
   switch (state.page) {
     case 'intro':
@@ -221,13 +247,16 @@ function render() {
     case 'map':
       app.innerHTML = `<section class="screen red map">${head()}<h1>${state.resultIndex === 0 ? '¡ESTA ES TU FOTO!' : '¡ESTE ES TU MAPA DE CALOR!'}</h1><div class="final-photo"><canvas id="thermal-map" role="img" aria-label="${state.resultIndex === 0 ? 'Tu fotografía' : 'Visualización térmica ilustrativa de tu fotografía'}"></canvas><p>${state.resultIndex === 0 ? 'Conocer tu cuerpo y dar seguimiento a tu salud es el primer paso para cuidarte.' : 'Reconocer y tratar tus síntomas es el primer paso para cuidar de ti y de tu salud futura.'}</p></div><div class="map-copy">Consulta a tu médico y<br><strong>TOMA EL CONTROL DE TU MENOPAUSIA</strong></div>${cta('SIGUIENTE', false, 'next')}</section>`;
       if (state.photo)
-        renderThermal(
+        ready = renderThermal(
           state.photo,
           state.zones,
           document.querySelector('#thermal-map'),
           undefined,
           state.resultIndex,
         ).catch(console.error);
+      break;
+    case 'download':
+      ready = showDownload();
       break;
   }
   if (state.page === 'intro' && state.assetsError) {
@@ -236,20 +265,24 @@ function render() {
     retry.dataset.action = 'retry-assets';
     retry.disabled = false;
   }
+  return ready;
 }
 const photoDisclaimer =
   'Campaña educativa de orientación general. No sustituye la consulta médica ni sirve para tratar condiciones de salud. Ante síntomas o dudas, consulte a su médico.';
 function showDownload() {
-  state.page = 'download';
-  app.className = 'stage page-download';
   app.innerHTML = `<section class="screen download-screen"><canvas id="download-preview" role="img" aria-label="${state.resultIndex === 0 ? 'Tu fotografía' : 'Tu foto con mapa de calor'}"></canvas>${head()}<div class="download-bottom"><button class="download-banner" data-action="download"><span class="download-qr-frame"><canvas id="photo-qr" aria-label="QR de la dirección local de la experiencia"></canvas><i class="corner top-left" aria-hidden="true"></i><i class="corner top-right" aria-hidden="true"></i><i class="corner bottom-left" aria-hidden="true"></i><i class="corner bottom-right" aria-hidden="true"></i></span><span class="download-divider" aria-hidden="true"></span><span class="download-label">ESCANEA ESTE QR Y<br>DESCARGA TU FOTO</span></button><p class="download-status" role="status"></p><p class="download-legal">${photoDisclaimer}</p></div></section>`;
-  QRCode.toCanvas(document.querySelector('#photo-qr'), window.location.href, {
-    width: 256,
-    margin: 0,
-    color: { dark: '#431d15', light: '#ffb755' },
-    errorCorrectionLevel: 'M',
-  }).catch(console.error);
-  if (state.photo)
+  const qrReady = QRCode.toCanvas(
+    document.querySelector('#photo-qr'),
+    window.location.href,
+    {
+      width: 256,
+      margin: 0,
+      color: { dark: '#431d15', light: '#ffb755' },
+      errorCorrectionLevel: 'M',
+    },
+  ).catch(console.error);
+  const photoReady =
+    state.photo &&
     renderThermal(
       state.photo,
       state.zones,
@@ -257,6 +290,7 @@ function showDownload() {
       undefined,
       state.resultIndex,
     ).catch(console.error);
+  return Promise.all([qrReady, photoReady]);
 }
 let downloadBusy = false;
 async function downloadPhoto() {
@@ -365,6 +399,9 @@ async function startCamera() {
     }
     state.stream = stream;
     const video = document.querySelector('#video');
+    video.addEventListener('loadeddata', () => video.classList.add('is-live'), {
+      once: true,
+    });
     video.srcObject = stream;
     document.querySelector('#thumbnail-video').srcObject = stream;
     const overlay = document.querySelector('#tracking-overlay');
@@ -426,7 +463,8 @@ function startCaptureCountdown() {
   let remaining = 5;
   button.disabled = true;
   button.classList.add('is-counting');
-  label.textContent = String(remaining);
+  animateCount(label, remaining);
+  sound.play('tick', { gesture: true });
   captureTimer = setInterval(() => {
     if (state.page !== 'camera' || state.photo || session !== cameraSession) {
       cancelCaptureCountdown();
@@ -443,7 +481,8 @@ function startCaptureCountdown() {
     if (next === remaining) return;
     remaining = next;
     if (next > 0) {
-      label.textContent = String(next);
+      animateCount(label, next);
+      sound.play('tick', { final: next === 1 });
       return;
     }
     cancelCaptureCountdown();
@@ -504,13 +543,20 @@ async function capture() {
     canvas.height,
   );
   const photo = canvas.toDataURL('image/webp', 0.9);
+  sound.play('shutter');
   state.photo = photo;
   state.thumbnail = faceThumbnail(canvas);
   state.photoReady = false;
   state.analyzing = true;
   state.trackingError = '';
-  stopCamera();
-  render();
+  await motion.run(
+    () => {
+      stopCamera();
+      return render();
+    },
+    { reveal: false, focus: false },
+  );
+  if (state.photo !== photo || state.page !== 'camera') return;
   try {
     const { image, landmarks } = await analyzePhoto(photo);
     if (state.photo === photo) {
@@ -524,7 +570,14 @@ async function capture() {
   } finally {
     if (state.photo === photo) {
       state.analyzing = false;
-      render();
+      const thumbnail = app.querySelector('.thumbnail img');
+      if (thumbnail) thumbnail.src = state.thumbnail;
+      const nextButton = app.querySelector('.camera-info .cta');
+      if (nextButton) {
+        nextButton.disabled = !state.photoReady;
+        nextButton.textContent = 'SIGUIENTE';
+      }
+      cameraError(state.trackingError);
     }
   }
 }
@@ -537,27 +590,32 @@ function clearPhoto() {
   clearPhotoAnalysis();
 }
 function retakePhoto() {
-  stopCamera();
-  clearPhoto();
-  navigate('camera');
+  return motion.run(
+    () => {
+      stopCamera();
+      clearPhoto();
+      state.page = 'camera';
+      return render();
+    },
+    { reveal: false, focus: false },
+  );
 }
-function navigate(page) {
-  if (state.timer) clearInterval(state.timer);
-  state.timer = null;
-  if (page !== 'camera') stopCamera();
-  state.page = page;
-  render();
-  app.querySelector('.screen')?.classList.add('is-entering');
+async function navigate(page) {
+  const changed = await motion.run(() => {
+    if (state.timer) clearInterval(state.timer);
+    state.timer = null;
+    if (page !== 'camera') stopCamera();
+    state.page = page;
+    return render();
+  });
+  if (!changed || state.page !== page) return;
   if (page === 'countdown') {
     let n = 3;
     state.timer = setInterval(() => {
       n--;
       const el = document.querySelector('#count span');
       if (el) {
-        el.textContent = String(n);
-        el.classList.remove('count-pop');
-        void el.offsetWidth;
-        el.classList.add('count-pop');
+        if (n > 0) animateCount(el, n);
       }
       if (n === 0) navigate('age');
     }, 850);
@@ -614,8 +672,11 @@ async function next() {
 }
 app.addEventListener('click', (event) => {
   const button = event.target.closest('[data-action]');
-  if (!button || button.disabled) return;
+  if (!button || button.disabled || motion.busy) return;
   const { action, group, value } = button.dataset;
+  // La cuenta regresiva proporciona su propio feedback al empezar.
+  if (action !== 'capture' || state.photo)
+    sound.play(action === 'select' ? 'select' : 'tap', { gesture: true });
   if (action === 'retry-assets') {
     state.assetsError = false;
     render();
@@ -632,8 +693,7 @@ app.addEventListener('click', (event) => {
     navigate('intro');
   }
   if (action === 'next' && state.page === 'map') {
-    showDownload();
-    app.querySelector('.screen')?.classList.add('is-entering');
+    navigate('download');
     return;
   }
   if (action === 'download') downloadPhoto();
@@ -665,6 +725,7 @@ app.addEventListener('click', (event) => {
 });
 app.addEventListener('change', (event) => {
   if (event.target.id === 'consent') {
+    sound.play('select', { gesture: true });
     state.consent = event.target.checked;
     render();
   }
@@ -679,5 +740,5 @@ const fitStage = () => {
 };
 fitStage();
 new ResizeObserver(fitStage).observe(viewport);
-render();
 preloadAssets();
+render();

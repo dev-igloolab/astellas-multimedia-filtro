@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import '../styles/design.css';
 import '../styles/motion.css';
+import BootLoader from '../components/BootLoader.astro';
 ---
 <!doctype html>
 <html lang="es">
@@ -12,7 +13,11 @@ import '../styles/motion.css';
   <title>Astellas · Toma el control de tu menopausia</title>
 </head>
 <body>
-  <main class="viewport"><div class="stage" id="app"></div></main>
+  <BootLoader />
+  <template id="app-styles-anchor"></template>
+  <main class="viewport t-page-slide" data-page="2" inert aria-hidden="true">
+    <div class="t-page" data-page-id="2"><div class="stage" id="app"></div></div>
+  </main>
   <script src="../experience.js"></script>
 </body>
 </html>

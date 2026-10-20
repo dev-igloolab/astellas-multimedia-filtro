@@ -1,110 +1,101 @@
 :root {
-  --motion-ease: cubic-bezier(.22, 1, .36, 1);
-  --motion-enter: 420ms;
-  --motion-step: 55ms;
+  --page-slide-dur: 250ms;
+  --page-fade-dur: 250ms;
+  --page-slide-distance: 8px;
+  --page-blur: 3px;
+  --page-stagger: 0ms;
+  --page-exit-enabled: 1;
+  --page-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --page-fade-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* El movimiento acompaña el cambio de pantalla sin alterar su composición 9:16. */
-@keyframes screen-reveal {
-  from { opacity: 0; transform: translateY(1.5cqw); }
-  to { opacity: 1; transform: translateY(0); }
+.t-page-slide {
+  position: relative;
 }
-@keyframes photo-reveal {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.t-page-slide .t-page[data-page-id="1"] {
+  --t-page-from-x: calc(var(--page-slide-distance) * -1);
 }
-@keyframes count-pop {
-  0% { opacity: .45; transform: scale(.88); }
-  100% { opacity: 1; transform: scale(1); }
+.t-page-slide .t-page[data-page-id="2"] {
+  --t-page-from-x: var(--page-slide-distance);
 }
-@keyframes choice-confirm {
-  from { transform: scale(.975); }
-  to { transform: scale(1); }
+.t-page-slide .t-page {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(calc(var(--t-page-from-x, 0px) * var(--page-exit-enabled)));
+  filter: blur(calc(var(--page-blur) * var(--page-exit-enabled)));
+  transition:
+    opacity   var(--page-fade-dur)  var(--page-fade-ease),
+    transform var(--page-slide-dur) var(--page-slide-ease),
+    filter    var(--page-slide-dur) var(--page-slide-ease);
+  will-change: opacity, transform, filter;
 }
-
-.screen.is-entering .header,
-.screen.is-entering .camera-heading,
-.screen.is-entering .intro-center,
-.screen.is-entering .intro-footer,
-.screen.is-entering .center > *,
-.screen.is-entering .result > h1,
-.screen.is-entering .result-intro,
-.screen.is-entering .result-card,
-.screen.is-entering.map > h1,
-.screen.is-entering .final-photo,
-.screen.is-entering .map-copy,
-.screen.is-entering .download-bottom,
-.screen.is-entering > .cta {
-  animation: screen-reveal var(--motion-enter) var(--motion-ease) both;
-}
-.screen.is-entering .header,
-.screen.is-entering .camera-heading { animation-delay: 0ms; }
-.screen.is-entering .center > :nth-child(1),
-.screen.is-entering .result > h1,
-.screen.is-entering.map > h1 { animation-delay: var(--motion-step); }
-.screen.is-entering .center > :nth-child(2),
-.screen.is-entering .result-intro,
-.screen.is-entering .final-photo { animation-delay: calc(var(--motion-step) * 2); }
-.screen.is-entering .center > :nth-child(n+3),
-.screen.is-entering .result-card,
-.screen.is-entering .map-copy { animation-delay: calc(var(--motion-step) * 3); }
-.screen.is-entering .intro-footer,
-.screen.is-entering .download-bottom,
-.screen.is-entering > .cta { animation-delay: calc(var(--motion-step) * 4); }
-
-.screen.is-entering .camera-feed,
-.screen.is-entering .countdown-photo,
-.screen.is-entering #download-preview {
-  animation: photo-reveal 340ms ease-out both;
-}
-.screen.is-entering .camera-info { animation: photo-reveal 300ms ease-out both; }
-.count-pop { display: inline-block; animation: count-pop 300ms var(--motion-ease); }
-
-.choice.selected,
-.zone.selected { animation: choice-confirm 240ms var(--motion-ease); }
-.choice,
-.zone,
-.cta,
-.home,
-.shutter,
-.retake,
-.download-banner { transition: filter 180ms ease-out, box-shadow 180ms ease-out; }
-@media (hover: hover) and (pointer: fine) {
-  .choice:not(:disabled):hover,
-  .zone:not(:disabled):hover,
-  .cta:not(:disabled):hover,
-  .home:hover,
-  .shutter:not(:disabled):hover,
-  .retake:hover,
-  .download-banner:hover { filter: brightness(1.08); }
+.t-page-slide[data-page="1"] .t-page[data-page-id="1"],
+.t-page-slide[data-page="2"] .t-page[data-page-id="2"] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+  filter: blur(0);
+  transition-delay: var(--page-stagger);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .screen.is-entering .header,
-  .screen.is-entering .camera-heading,
-  .screen.is-entering .intro-center,
-  .screen.is-entering .intro-footer,
-  .screen.is-entering .center > *,
-  .screen.is-entering .result > h1,
-  .screen.is-entering .result-intro,
-  .screen.is-entering .result-card,
-  .screen.is-entering.map > h1,
-  .screen.is-entering .final-photo,
-  .screen.is-entering .map-copy,
-  .screen.is-entering .download-bottom,
-  .screen.is-entering > .cta,
-  .screen.is-entering .camera-feed,
-  .screen.is-entering .countdown-photo,
-  .screen.is-entering #download-preview,
-  .screen.is-entering .camera-info,
-  .count-pop,
-  .choice.selected,
-  .zone.selected { animation: none !important; }
-  .choice,
-  .zone,
-  .cta,
-  .home,
-  .shutter,
-  .retake,
-  .download-banner { transition: none !important; }
+  .t-page-slide .t-page { transition: none !important; }
+}
+
+/* Ritmo de la experiencia: fundido de pantalla y entradas breves por grupos. */
+:root {
+  --page-fade-dur: 300ms;
+  --page-slide-dur: 300ms;
+  --page-slide-distance: 0px;
+  --page-blur: 0px;
+  --motion-ease: cubic-bezier(.22, 1, .36, 1);
+  --motion-enter: 400ms;
+  --motion-count: 220ms;
+}
+.viewport.t-page-slide { position: fixed; }
+/* La nueva base permanece opaca debajo del fundido: no aparece un destello oscuro. */
+.t-page-slide .t-page[data-page-id="2"] { opacity: 1; }
+.t-page-slide.is-preparing > .t-page { transition: none; }
+.motion-snapshot { z-index: 2; }
+.motion-snapshot * { animation: none !important; transition: none !important; }
+.motion-snapshot .stage { pointer-events: none; }
+.screen h1[tabindex="-1"]:focus { outline: none; }
+
+@keyframes content-enter {
+  from { opacity: 0; translate: 0 1.8cqw; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes media-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.motion-reveal {
+  animation: content-enter var(--motion-enter) var(--motion-ease) var(--reveal-delay, 0ms) backwards;
+}
+.camera-feed > video.is-live {
+  animation: media-enter 260ms var(--motion-ease) backwards;
+}
+.count span { display: inline-block; }
+
+/* La respuesta al toque conserva los desplazamientos propios del diseño. */
+.choice, .zone, .cta, .home, .shutter, .retake, .download-banner {
+  transition: scale 150ms var(--motion-ease), filter 180ms ease-out, box-shadow 180ms ease-out;
+}
+.choice:not(:disabled):active, .zone:not(:disabled):active,
+.cta:not(:disabled):active, .home:active, .shutter:not(:disabled):active,
+.retake:active, .download-banner:active { scale: .97; }
+
+@media (hover: hover) and (pointer: fine) {
+  .choice:not(:disabled):hover, .zone:not(:disabled):hover,
+  .cta:not(:disabled):hover, .home:hover, .shutter:not(:disabled):hover,
+  .retake:hover, .download-banner:hover { filter: brightness(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .motion-reveal, .camera-feed > video.is-live { animation: none !important; }
+  .choice, .zone, .cta, .home, .shutter, .retake, .download-banner,
+  .camera .detection-zone { transition: none !important; }
+  .choice:active, .zone:active, .cta:active, .home:active,
+  .shutter:active, .retake:active, .download-banner:active { scale: none; }
 }
