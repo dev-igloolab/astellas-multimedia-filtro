@@ -9,6 +9,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "build:portable": "astro build && node scripts/build-portable.mjs",
+    "test": "node --test",
     "preview": "astro preview",
     "astro": "astro"
   },

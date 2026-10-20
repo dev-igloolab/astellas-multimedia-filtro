@@ -1,4 +1,5 @@
 import { PoseLandmarker } from '@mediapipe/tasks-vision';
+import { visibleCaptureFrame } from './capture-frame.js';
 
 const files = {
   model: '/models/pose_landmarker_lite.task',
@@ -10,6 +11,8 @@ const files = {
 
 let detectorPromise;
 let analysisCache;
+let detectorMode = 'IMAGE';
+let modeQueue = Promise.resolve();
 
 async function getBytes(name) {
   const response = await fetch(window.ASTELLAS_VISION_ASSETS?.[name] ?? files[name]);
@@ -44,10 +47,72 @@ export function prepareTracking() {
   return detectorPromise;
 }
 
+function detectorInMode(mode) {
+  const task = modeQueue.catch(() => {}).then(async () => {
+    const detector = await prepareTracking();
+    if (detectorMode !== mode) {
+      await detector.setOptions({
+        runningMode: mode,
+        outputSegmentationMasks: mode === 'IMAGE',
+      });
+      detectorMode = mode;
+    }
+    return detector;
+  });
+  modeQueue = task;
+  return task;
+}
+
+export function startLiveTracking(video, onFrame, onError) {
+  let active = true;
+  let frameId = 0;
+  let lastSample = 0;
+  const sample = document.createElement('canvas');
+  sample.width = 360;
+  sample.height = 640;
+  const context = sample.getContext('2d', { alpha: false });
+  const stop = () => {
+    active = false;
+    cancelAnimationFrame(frameId);
+  };
+
+  detectorInMode('VIDEO').then(detector => {
+    if (!active) return;
+    const tick = time => {
+      if (!active) return;
+      frameId = requestAnimationFrame(tick);
+      if (time - lastSample < 120 || video.readyState < 2 || !video.videoWidth) return;
+      lastSample = time;
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
+      const { x: cropLeft, y: cropTop, width: cropWidth, height: cropHeight } = visibleCaptureFrame(
+        videoWidth, videoHeight, video.clientWidth, video.clientHeight, video.parentElement.clientHeight
+      );
+      const sampleHeight = Math.round(sample.width * cropHeight / cropWidth);
+      if (sample.height !== sampleHeight) sample.height = sampleHeight;
+      try {
+        context.drawImage(video, cropLeft, cropTop, cropWidth, cropHeight, 0, 0, sample.width, sample.height);
+        const result = detector.detectForVideo(sample, time);
+        try {
+          onFrame(result.landmarks[0] ?? [], { videoWidth, videoHeight, cropWidth, cropHeight, cropLeft, cropTop });
+        } finally {
+          result.close();
+        }
+      } catch (error) {
+        stop();
+        onError?.(error);
+      }
+    };
+    frameId = requestAnimationFrame(tick);
+  }).catch(error => { if (active) onError?.(error); });
+
+  return stop;
+}
+
 export function analyzePhoto(photo) {
   if (analysisCache?.photo === photo) return analysisCache.promise;
   const promise = (async () => {
-    const detector = await prepareTracking();
+    const detector = await detectorInMode('IMAGE');
     const image = new Image();
     image.src = photo;
     await image.decode();

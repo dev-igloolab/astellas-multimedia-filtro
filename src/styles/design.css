@@ -75,16 +75,24 @@
 .page-instructions .cta { bottom: 13.5cqw; background: var(--peach); color: var(--red); }
 
 .camera { --capture-amber: #fbb03b; padding: 0; background: var(--brown); }
-.camera .preview { inset: 0 0 37%; background: #a09185; }
-.camera .face-frame { left: 34.5%; top: 33%; width: 34%; height: 32.5%; border: 0; }
-.camera .face-frame .corner { position: absolute; width: 8.5cqw; height: 10.5cqw; border: .8cqw solid #f00; }
-.camera .face-frame .top-left { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 3cqw 0 0 0; }
-.camera .face-frame .top-right { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 3cqw 0 0; }
-.camera .face-frame .bottom-left { bottom: 0; left: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 3cqw; }
-.camera .face-frame .bottom-right { bottom: 0; right: 0; border-left: 0; border-top: 0; border-radius: 0 0 3cqw 0; }
+.camera .preview { inset: 0 0 31%; background: #a09185; }
+.camera .camera-feed { position: absolute; inset: 0; overflow: hidden; background: #a09185; }
+.camera .camera-feed > video#video { display: block; width: 100%; height: 177.7778cqw; object-fit: cover; object-position: center top; }
+.camera .camera-feed > img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+.camera .tracking-overlay { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; pointer-events: none; }
+.camera .tracking-status { position: absolute; z-index: 2; top: 16cqw; left: 50%; transform: translateX(-50%); width: max-content; max-width: 86%; padding: 1.1cqw 2.2cqw; border-radius: 5cqw; background: rgb(61 29 22 / 82%); color: var(--peach); font: 400 2.7cqw/1 Anton, sans-serif; letter-spacing: .04em; text-align: center; pointer-events: none; }
+.camera .tracking-status::before { content: ''; display: inline-block; width: 1.6cqw; height: 1.6cqw; margin-right: 1.2cqw; border-radius: 50%; background: var(--red); vertical-align: .1cqw; }
+.camera .tracking-status[data-active="true"]::before { background: var(--amber); }
+.camera .detection-rail { position: absolute; z-index: 2; top: 25cqw; right: 2.5cqw; display: flex; flex-direction: column; gap: 1.3cqw; pointer-events: none; }
+.camera .detection-zone { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5cqw; width: 10.5cqw; min-height: 10.5cqw; padding: 1cqw .4cqw .8cqw; border-radius: 1.4cqw; background: rgb(67 29 21 / 53%); color: rgb(255 216 196 / 68%); transition: background-color .2s ease, color .2s ease; }
+.camera .detection-zone::before { content: ''; position: absolute; top: .7cqw; right: .7cqw; width: 1.2cqw; height: 1.2cqw; border: .2cqw solid currentColor; border-radius: 50%; }
+.camera .detection-zone .icon { width: 5.3cqw; height: 5.3cqw; }
+.camera .detection-zone > span:last-child { font: 400 1.55cqw/1 Anton, sans-serif; letter-spacing: .045em; }
+.camera .detection-zone[data-detected="true"] { background: rgb(67 29 21 / 82%); color: var(--amber); }
+.camera .detection-zone[data-detected="true"]::before { background: var(--amber); box-shadow: 0 0 .9cqw rgb(255 183 85 / 48%); }
 .camera-heading {
   position: absolute;
-  top: 10.6cqw;
+  top: 4.6cqw;
   left: 7.5%;
   right: 6%;
   display: flex;
@@ -114,7 +122,9 @@
 .camera .shutter { position: relative; width: 30cqw; height: 25cqw; flex: none; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--brown); font-size: 5cqw; }
 .camera .shutter::before { content: ''; position: absolute; width: 16cqw; height: 16cqw; border-radius: 50%; background: var(--capture-amber); transform: translateY(-1cqw); }
 .camera .shutter span { position: relative; z-index: 1; transform: translateY(-1cqw); }
-.camera-info { inset: 63% 0 0; padding: 13.5cqw 7cqw 0; background: var(--brown); }
+.camera .shutter:disabled { opacity: 1; }
+.camera .shutter.is-counting span { font-size: 8cqw; }
+.camera-info { inset: calc(69% - 2px) 0 0; z-index: 1; width: 100%; padding: 13.5cqw 7cqw 0; background: var(--brown); }
 .camera-info h2 { color: var(--amber); font-size: 5.1cqw; line-height: 1.03; transform: scaleX(.92); }
 .camera-info p:not(.camera-error) { color: var(--peach); font-size: 4.1cqw; }
 .camera-info p:not(.camera-error)::before { content: ''; display: block; height: .25cqw; width: 72cqw; background: var(--amber); margin: 1.8cqw auto 2cqw; }

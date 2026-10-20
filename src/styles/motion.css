@@ -1,0 +1,110 @@
+:root {
+  --motion-ease: cubic-bezier(.22, 1, .36, 1);
+  --motion-enter: 420ms;
+  --motion-step: 55ms;
+}
+
+/* El movimiento acompaña el cambio de pantalla sin alterar su composición 9:16. */
+@keyframes screen-reveal {
+  from { opacity: 0; transform: translateY(1.5cqw); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes photo-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes count-pop {
+  0% { opacity: .45; transform: scale(.88); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes choice-confirm {
+  from { transform: scale(.975); }
+  to { transform: scale(1); }
+}
+
+.screen.is-entering .header,
+.screen.is-entering .camera-heading,
+.screen.is-entering .intro-center,
+.screen.is-entering .intro-footer,
+.screen.is-entering .center > *,
+.screen.is-entering .result > h1,
+.screen.is-entering .result-intro,
+.screen.is-entering .result-card,
+.screen.is-entering.map > h1,
+.screen.is-entering .final-photo,
+.screen.is-entering .map-copy,
+.screen.is-entering .download-bottom,
+.screen.is-entering > .cta {
+  animation: screen-reveal var(--motion-enter) var(--motion-ease) both;
+}
+.screen.is-entering .header,
+.screen.is-entering .camera-heading { animation-delay: 0ms; }
+.screen.is-entering .center > :nth-child(1),
+.screen.is-entering .result > h1,
+.screen.is-entering.map > h1 { animation-delay: var(--motion-step); }
+.screen.is-entering .center > :nth-child(2),
+.screen.is-entering .result-intro,
+.screen.is-entering .final-photo { animation-delay: calc(var(--motion-step) * 2); }
+.screen.is-entering .center > :nth-child(n+3),
+.screen.is-entering .result-card,
+.screen.is-entering .map-copy { animation-delay: calc(var(--motion-step) * 3); }
+.screen.is-entering .intro-footer,
+.screen.is-entering .download-bottom,
+.screen.is-entering > .cta { animation-delay: calc(var(--motion-step) * 4); }
+
+.screen.is-entering .camera-feed,
+.screen.is-entering .countdown-photo,
+.screen.is-entering #download-preview {
+  animation: photo-reveal 340ms ease-out both;
+}
+.screen.is-entering .camera-info { animation: photo-reveal 300ms ease-out both; }
+.count-pop { display: inline-block; animation: count-pop 300ms var(--motion-ease); }
+
+.choice.selected,
+.zone.selected { animation: choice-confirm 240ms var(--motion-ease); }
+.choice,
+.zone,
+.cta,
+.home,
+.shutter,
+.retake,
+.download-banner { transition: filter 180ms ease-out, box-shadow 180ms ease-out; }
+@media (hover: hover) and (pointer: fine) {
+  .choice:not(:disabled):hover,
+  .zone:not(:disabled):hover,
+  .cta:not(:disabled):hover,
+  .home:hover,
+  .shutter:not(:disabled):hover,
+  .retake:hover,
+  .download-banner:hover { filter: brightness(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen.is-entering .header,
+  .screen.is-entering .camera-heading,
+  .screen.is-entering .intro-center,
+  .screen.is-entering .intro-footer,
+  .screen.is-entering .center > *,
+  .screen.is-entering .result > h1,
+  .screen.is-entering .result-intro,
+  .screen.is-entering .result-card,
+  .screen.is-entering.map > h1,
+  .screen.is-entering .final-photo,
+  .screen.is-entering .map-copy,
+  .screen.is-entering .download-bottom,
+  .screen.is-entering > .cta,
+  .screen.is-entering .camera-feed,
+  .screen.is-entering .countdown-photo,
+  .screen.is-entering #download-preview,
+  .screen.is-entering .camera-info,
+  .count-pop,
+  .choice.selected,
+  .zone.selected { animation: none !important; }
+  .choice,
+  .zone,
+  .cta,
+  .home,
+  .shutter,
+  .retake,
+  .download-banner { transition: none !important; }
+}

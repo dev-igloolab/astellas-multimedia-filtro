@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import '../styles/design.css';
+import '../styles/motion.css';
 ---
 <!doctype html>
 <html lang="es">
@@ -14,10 +15,13 @@ import '../styles/design.css';
   <main class="viewport"><div class="stage" id="app"></div></main>
   <script>
     import { renderThermal, validateTrackedZone } from '../thermal.js';
-    import { prepareTracking, analyzePhoto } from '../pose.js';
+    import { prepareTracking, analyzePhoto, startLiveTracking } from '../pose.js';
+    import { drawTrackingOverlay } from '../tracking-overlay.js';
+    import { visibleCaptureFrame } from '../capture-frame.js';
+    import { resultForAnswers } from '../results.js';
     import QRCode from 'qrcode';
     const app = document.querySelector('#app');
-    const state = { page: 'intro', resultIndex: 0, consent: false, assetsReady: false, assetsError: false, assetsLoading: false, photo: '', photoReady: false, analyzing: false, trackingError: '', stream: null, age: '', frequency: '', feelings: new Set(), zones: new Set(), timer: null };
+    const state = { page: 'intro', resultIndex: 0, consent: false, assetsReady: false, assetsError: false, assetsLoading: false, photo: '', thumbnail: '', photoReady: false, analyzing: false, trackingError: '', stream: null, age: '', frequency: '', feelings: new Set(), zones: new Set(), timer: null };
     const iconNames = [
       'bienestar-mental', 'brazos-piernas', 'calor-repentino', 'calor-termometro',
       'cambios-animo', 'cara-cuello', 'concentracion', 'continuar-abajo',
@@ -76,6 +80,12 @@ import '../styles/design.css';
       if (state.page === 'intro') render();
     }
     const icon = (name, extra = '') => `<span class="icon ${extra}" style="--image:url('${assetUrl(name)}')" aria-hidden="true"></span>`;
+    const trackingIndicators = [
+      ['cara', 'cara-cuello', 'ROSTRO'],
+      ['pecho', 'pecho-espalda', 'PECHO'],
+      ['brazos', 'brazos-piernas', 'BRAZOS'],
+    ];
+    const trackingPanel = () => `<div class="detection-rail" role="list" aria-label="Zonas detectadas">${trackingIndicators.map(([zone, asset, label]) => `<div class="detection-zone" data-detection-zone="${zone}" data-detected="false" role="listitem" aria-label="${label}: sin detectar">${icon(asset)}<span>${label}</span></div>`).join('')}</div>`;
     const logo = (colored = false) => `<img class="logo" src="${assetUrl(colored ? 'logoColor' : 'logo')}" alt="Astellas">`;
     const head = (light = false) => `<header class="header ${light ? 'light' : ''}">${logo(light)}<button class="home" data-action="home" aria-label="Ir al inicio">${icon('inicio')}</button></header>`;
     const cta = (label = 'SIGUIENTE', disabled = false, action = 'next') => `<button class="cta" data-action="${action}" ${disabled ? 'disabled' : ''}>${label}</button>`;
@@ -83,7 +93,7 @@ import '../styles/design.css';
       age: [['30-40','Entre los 30 a 40 años'],['40-55','Entre los 40 a 55 años'],['55-60','Entre los 55 a 60 años'],['60+','+ de 60 años']],
       frequency: [['never','Nunca'],['sometimes','Ocasionalmente'],['often','Varias veces al día']],
       feelings: [['calor','Calor repentino'],['sudor','Sudoración'],['interrumpe','Interrumpe mis actividades'],['todas','Todas las anteriores'],['ambas','A y B']],
-      zones: [['cara','Cara y cuello','cara-cuello'],['pecho','Pecho y espalda','pecho-espalda'],['cuerpo','Todo el cuerpo','todo-cuerpo'],['extremidades','Brazos y piernas','brazos-piernas']]
+      zones: [['cara','Cara y cuello','cara-cuello'],['pecho','Pecho y espalda','pecho-espalda'],['cuerpo','Todo el cuerpo','todo-cuerpo'],['extremidades','Brazos y antebrazos','brazos-piernas']]
     };
     const choices = (group) => items[group].map(([value,label],i) => {
       const selected = group === 'age' || group === 'frequency' ? state[group] === value : state[group].has(value);
@@ -138,11 +148,13 @@ import '../styles/design.css';
         case 'camera':
           app.innerHTML = `<section class="screen camera">
             <div class="preview">
-              <video id="video" autoplay playsinline muted></video>
-              ${state.photo ? `<img src="${state.photo}" alt="Foto capturada">` : ''}
-              <div class="face-frame" aria-hidden="true"><span class="corner top-left"></span><span class="corner top-right"></span><span class="corner bottom-left"></span><span class="corner bottom-right"></span></div>
+              <div class="camera-feed">
+                <video id="video" autoplay playsinline muted></video>
+                ${state.photo ? `<img src="${state.photo}" alt="Foto capturada">` : ''}
+              </div>
+              ${state.photo ? '' : `<canvas class="tracking-overlay" id="tracking-overlay" aria-hidden="true"></canvas><p class="tracking-status" id="tracking-status" role="status">UBÍCATE FRENTE A LA CÁMARA</p>${trackingPanel()}`}
               <div class="capture-bar">
-                <div class="thumbnail">${state.photo ? `<img src="${state.photo}" alt="Miniatura de la foto">` : '<video id="thumbnail-video" autoplay playsinline muted aria-hidden="true"></video>'}</div>
+                <div class="thumbnail">${state.photo ? `<img src="${state.thumbnail || state.photo}" alt="Miniatura de la foto">` : '<video id="thumbnail-video" autoplay playsinline muted aria-hidden="true"></video>'}</div>
               <button class="shutter" data-action="capture"><span>TOMAR</span></button>
                 <button class="retake" data-action="retake" aria-label="Repetir foto">${icon('repetir')}</button>
               </div>
@@ -167,7 +179,7 @@ import '../styles/design.css';
           app.innerHTML = `<section class="screen peach result-screen ${variant.kind}">${head(true)}<div class="result"><h1>${variant.title}</h1><p class="result-intro">${variant.intro}</p>${resultCard(variant)}</div></section>`;
           break;
         }
-        case 'map': app.innerHTML = `<section class="screen red map">${head()}<h1>¡ESTE ES TU MAPA DE CALOR!</h1><div class="final-photo"><canvas id="thermal-map" role="img" aria-label="Visualización térmica ilustrativa de tu fotografía"></canvas><p>Reconocer y tratar tus síntomas es el primer paso para cuidar de ti y de tu salud futura.</p></div><div class="map-copy">Consulta a tu médico y<br><strong>TOMA EL CONTROL DE TU MENOPAUSIA</strong></div>${cta('SIGUIENTE',false,'next')}</section>`; if(state.photo) renderThermal(state.photo,state.zones,document.querySelector('#thermal-map')).catch(console.error); break;
+        case 'map': app.innerHTML = `<section class="screen red map">${head()}<h1>${state.resultIndex===0?'¡ESTA ES TU FOTO!':'¡ESTE ES TU MAPA DE CALOR!'}</h1><div class="final-photo"><canvas id="thermal-map" role="img" aria-label="${state.resultIndex===0?'Tu fotografía':'Visualización térmica ilustrativa de tu fotografía'}"></canvas><p>${state.resultIndex===0?'Conocer tu cuerpo y dar seguimiento a tu salud es el primer paso para cuidarte.':'Reconocer y tratar tus síntomas es el primer paso para cuidar de ti y de tu salud futura.'}</p></div><div class="map-copy">Consulta a tu médico y<br><strong>TOMA EL CONTROL DE TU MENOPAUSIA</strong></div>${cta('SIGUIENTE',false,'next')}</section>`; if(state.photo) renderThermal(state.photo,state.zones,document.querySelector('#thermal-map'),undefined,state.resultIndex).catch(console.error); break;
       }
       if (state.page === 'intro' && state.assetsError) {
         const retry = app.querySelector('.intro .cta');
@@ -180,9 +192,9 @@ import '../styles/design.css';
     function showDownload() {
       state.page='download';
       app.className='stage page-download';
-      app.innerHTML=`<section class="screen download-screen"><canvas id="download-preview" role="img" aria-label="Tu foto con mapa de calor"></canvas>${head()}<div class="download-bottom"><button class="download-banner" data-action="download"><canvas id="photo-qr" aria-label="QR de la dirección local de la experiencia"></canvas><span>ESCANEA ESTE QR Y<br>DESCARGA TU FOTO</span></button><p class="download-status" role="status"></p><p class="download-legal">${photoDisclaimer}</p></div></section>`;
+      app.innerHTML=`<section class="screen download-screen"><canvas id="download-preview" role="img" aria-label="${state.resultIndex===0?'Tu fotografía':'Tu foto con mapa de calor'}"></canvas>${head()}<div class="download-bottom"><button class="download-banner" data-action="download"><canvas id="photo-qr" aria-label="QR de la dirección local de la experiencia"></canvas><span>ESCANEA ESTE QR Y<br>DESCARGA TU FOTO</span></button><p class="download-status" role="status"></p><p class="download-legal">${photoDisclaimer}</p></div></section>`;
       QRCode.toCanvas(document.querySelector('#photo-qr'),window.location.href,{width:256,margin:2,color:{dark:'#431d15',light:'#ffb755'},errorCorrectionLevel:'M'}).catch(console.error);
-      if(state.photo) renderThermal(state.photo,state.zones,document.querySelector('#download-preview')).catch(console.error);
+      if(state.photo) renderThermal(state.photo,state.zones,document.querySelector('#download-preview'),undefined,state.resultIndex).catch(console.error);
     }
     let downloadBusy=false;
     async function downloadPhoto() {
@@ -191,7 +203,7 @@ import '../styles/design.css';
       try {
         await document.fonts.ready;
         const filteredPhoto=document.createElement('canvas');
-        await renderThermal(state.photo,state.zones,filteredPhoto,{width:936,height:1590});
+        await renderThermal(state.photo,state.zones,filteredPhoto,{width:936,height:1590},state.resultIndex);
         const brand=new Image(); brand.src=assetUrl('logo'); await brand.decode();
         const canvas=document.createElement('canvas'); canvas.width=1080; canvas.height=1920;
         const ctx=canvas.getContext('2d');
@@ -223,24 +235,125 @@ import '../styles/design.css';
         const status=document.querySelector('.download-status');if(status)status.textContent='No se pudo descargar la foto. Intenta de nuevo.';
       }finally{downloadBusy=false;}
     }
-    function stopCamera() { state.stream?.getTracks().forEach(t => t.stop()); state.stream = null; }
+    let stopTracking = () => {};
+    let cameraSession = 0;
+let captureTimer = null;
+function cancelCaptureCountdown() {
+  if (captureTimer !== null) clearInterval(captureTimer);
+  captureTimer = null;
+}
+function resetCaptureCountdown() {
+  cancelCaptureCountdown();
+  const button = document.querySelector('.camera .shutter');
+  if (button) {
+    button.disabled = false;
+    button.classList.remove('is-counting');
+    button.querySelector('span').textContent = 'TOMAR';
+  }
+}
+    function stopCamera() {
+  cancelCaptureCountdown();
+      cameraSession++;
+      stopTracking(); stopTracking = () => {};
+      state.stream?.getTracks().forEach(t => t.stop()); state.stream = null;
+    }
     async function startCamera() {
       if (!navigator.mediaDevices?.getUserMedia) { cameraError('La cámara no está disponible en este navegador.'); return; }
-      try { const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280}},audio:false}); if(state.page !== 'camera') { stream.getTracks().forEach(t=>t.stop()); return; } state.stream = stream; document.querySelector('#video').srcObject=stream; document.querySelector('#thumbnail-video').srcObject=stream; }
-      catch { cameraError('Puedes continuar sin cámara o activar el permiso y pulsar repetir.'); }
+      const session = ++cameraSession;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280}},audio:false});
+        if(state.page !== 'camera' || state.photo || session !== cameraSession) { stream.getTracks().forEach(t=>t.stop()); return; }
+        state.stream = stream;
+        const video = document.querySelector('#video');
+        video.srcObject = stream;
+        document.querySelector('#thumbnail-video').srcObject = stream;
+        const overlay = document.querySelector('#tracking-overlay');
+        const status = document.querySelector('#tracking-status');
+        stopTracking = startLiveTracking(video, (landmarks, frame) => {
+          if (session !== cameraSession || !overlay?.isConnected) return;
+          const detected = drawTrackingOverlay(overlay, landmarks, frame);
+          const message = detected.length ? 'ZONAS DETECTADAS' : 'UBÍCATE FRENTE A LA CÁMARA';
+          if (status.textContent !== message) status.textContent = message;
+          status.dataset.active = String(detected.length > 0);
+          const activeZones = new Set(detected);
+          for (const item of document.querySelectorAll('[data-detection-zone]')) {
+            const active = activeZones.has(item.dataset.detectionZone);
+            item.dataset.detected = String(active);
+            item.setAttribute('aria-label', `${item.textContent.trim()}: ${active ? 'detectada' : 'sin detectar'}`);
+          }
+        }, error => { console.error('No se pudo mostrar el seguimiento en vivo.', error); cameraError('No se pudo mostrar el seguimiento en vivo. Puedes repetir la foto.'); });
+      }
+      catch { cameraError('Activa el permiso de cámara y pulsa repetir para continuar.'); }
     }
     function cameraError(text) { const el=document.querySelector('#camera-error'); if(el) el.textContent=text; }
+function startCaptureCountdown() {
+  if (state.page !== 'camera' || state.photo || captureTimer !== null) return;
+  const video = document.querySelector('#video');
+  if (!video?.videoWidth || !state.stream?.active) {
+    cameraError('Espera a que la cámara esté lista.');
+    return;
+  }
+  const button = document.querySelector('.shutter');
+  const label = button?.querySelector('span');
+  if (!button || !label) return;
+  const session = cameraSession;
+  const deadline = performance.now() + 5000;
+  let remaining = 5;
+  button.disabled = true;
+  button.classList.add('is-counting');
+  label.textContent = String(remaining);
+  captureTimer = setInterval(() => {
+    if (state.page !== 'camera' || state.photo || session !== cameraSession) {
+      cancelCaptureCountdown();
+      return;
+    }
+    if (!state.stream?.active || !video.isConnected || !video.videoWidth) {
+      resetCaptureCountdown();
+      cameraError('La cámara se desconectó. Pulsa repetir para intentar de nuevo.');
+      return;
+    }
+    const next = Math.max(0, Math.ceil((deadline - performance.now()) / 1000));
+    if (next === remaining) return;
+    remaining = next;
+    if (next > 0) {
+      label.textContent = String(next);
+      return;
+    }
+    cancelCaptureCountdown();
+    capture();
+  }, 100);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && captureTimer !== null) resetCaptureCountdown();
+});
+    function faceThumbnail(source, landmarks) {
+      const width = source.width;
+      const height = source.height;
+      const nose = landmarks?.[0];
+      const leftEar = landmarks?.[7];
+      const rightEar = landmarks?.[8];
+      const faceWidth = leftEar && rightEar ? Math.abs(leftEar.x - rightEar.x) * width : 0;
+      const side = Math.min(width, Math.max(width * .68, faceWidth * 2.3));
+      const centerX = (nose?.x ?? .5) * width;
+      const centerY = (nose?.y ?? .18) * height;
+      const x = Math.max(0, Math.min(width - side, centerX - side / 2));
+      const y = Math.max(0, Math.min(height - side, centerY - side / 2));
+      const thumbnail = document.createElement('canvas');
+      thumbnail.width = thumbnail.height = 320;
+      thumbnail.getContext('2d').drawImage(source, x, y, side, side, 0, 0, 320, 320);
+      return thumbnail.toDataURL('image/webp', .88);
+    }
     async function capture() {
       const video=document.querySelector('#video'); if(!video?.videoWidth) { cameraError('Espera a que la cámara esté lista.'); return; }
-      const canvas=document.createElement('canvas'); canvas.width=900; canvas.height=1200;
-      const width=Math.min(video.videoWidth,video.videoHeight*.75),height=width/.75;
-      const ctx=canvas.getContext('2d'); ctx.translate(canvas.width,0); ctx.scale(-1,1); ctx.drawImage(video,(video.videoWidth-width)/2,(video.videoHeight-height)/2,width,height,0,0,canvas.width,canvas.height);
+      const frame=visibleCaptureFrame(video.videoWidth,video.videoHeight,video.clientWidth,video.clientHeight,video.parentElement.clientHeight);
+      const canvas=document.createElement('canvas'); canvas.width=900; canvas.height=Math.round(900*frame.height/frame.width);
+      const ctx=canvas.getContext('2d'); ctx.translate(canvas.width,0); ctx.scale(-1,1); ctx.drawImage(video,frame.x,frame.y,frame.width,frame.height,0,0,canvas.width,canvas.height);
       const photo=canvas.toDataURL('image/webp',.9);
-      state.photo=photo; state.photoReady=false; state.analyzing=true; state.trackingError='';
+      state.photo=photo; state.thumbnail=faceThumbnail(canvas); state.photoReady=false; state.analyzing=true; state.trackingError='';
       stopCamera(); render();
       try {
-        await analyzePhoto(photo);
-        if(state.photo===photo) state.photoReady=true;
+        const { image, landmarks } = await analyzePhoto(photo);
+        if(state.photo===photo) { state.thumbnail=faceThumbnail(image, landmarks); state.photoReady=true; }
       } catch(error) {
         if(state.photo===photo) state.trackingError=error.message || 'No pudimos analizar la foto. Repítela con buena luz.';
       } finally {
@@ -249,21 +362,28 @@ import '../styles/design.css';
     }
     function navigate(page) {
       if(state.timer) clearInterval(state.timer); state.timer=null; if(page!=='camera') stopCamera(); state.page=page; render();
-      if(page==='countdown') { let n=3; state.timer=setInterval(()=>{n--; const el=document.querySelector('#count span'); if(el) el.textContent=String(n); if(n===0) navigate('age');},850); }
+      app.querySelector('.screen')?.classList.add('is-entering');
+      if(page==='countdown') { let n=3; state.timer=setInterval(()=>{n--; const el=document.querySelector('#count span'); if(el) { el.textContent=String(n); el.classList.remove('count-pop'); void el.offsetWidth; el.classList.add('count-pop'); } if(n===0) navigate('age');},850); }
     }
     async function next() {
       if(state.page==='intro'&&(!state.consent||!state.assetsReady))return;
       if(state.page==='camera'&&!state.photoReady)return;
+      if(state.page==='frequency'&&state.frequency==='never') {
+        state.feelings.clear(); state.zones.clear(); state.resultIndex=0;
+        navigate('result'); return;
+      }
+      if(state.page==='result') { navigate('map'); return; }
       if(state.page==='zones') {
+        const result = resultForAnswers(state.frequency, [...state.feelings][0]);
+        if(result===null || !state.zones.size) return;
         try { await validateTrackedZone(state.photo, state.zones); }
         catch(error) {
-          state.photo=''; state.photoReady=false;
+          state.photo=''; state.thumbnail=''; state.photoReady=false;
           state.trackingError=error.message || 'Repite la foto para mostrar la zona elegida.';
           navigate('camera'); return;
         }
-        state.resultIndex=0;
+        state.resultIndex=result;
       }
-      if(state.page==='result') { if(state.resultIndex<resultVariants.length-1) { state.resultIndex++; render(); } else navigate('map'); return; }
       const routes={intro:'instructions',instructions:'camera',camera:'countdown',age:'frequency',frequency:'feelings',feelings:'zones',zones:'result'};
       if(routes[state.page]) navigate(routes[state.page]);
     }
@@ -271,13 +391,23 @@ import '../styles/design.css';
       const button=event.target.closest('[data-action]'); if(!button) return;
       const {action,group,value}=button.dataset;
       if(action==='retry-assets') { state.assetsError=false; render(); preloadAssets(); }
-      if(action==='home') { state.consent=false;state.photo='';state.photoReady=false;state.trackingError='';state.age='';state.frequency='';state.resultIndex=0;state.feelings.clear();state.zones.clear();navigate('intro'); }
-      if(action==='next'&&state.page==='map') { showDownload(); return; }
+      if(action==='home') { state.consent=false;state.photo='';state.thumbnail='';state.photoReady=false;state.trackingError='';state.age='';state.frequency='';state.resultIndex=0;state.feelings.clear();state.zones.clear();navigate('intro'); }
+      if(action==='next'&&state.page==='map') { showDownload(); app.querySelector('.screen')?.classList.add('is-entering'); return; }
       if(action==='download') downloadPhoto();
       if(action==='next') next();
-      if(action==='capture') { if(state.photo) { stopCamera(); state.photo=''; state.photoReady=false; state.trackingError=''; navigate('camera'); } else capture(); }
-      if(action==='retake') {stopCamera();state.photo='';state.photoReady=false;state.trackingError='';navigate('camera');}
-      if(action==='select') { if(group==='age'||group==='frequency') state[group]=value; else if(group==='zones') state.zones=new Set([value]); else {const selected=state[group];selected.has(value)?selected.delete(value):selected.add(value);} render(); }
+  if(action==='capture') { if(state.photo) { stopCamera(); state.photo=''; state.thumbnail=''; state.photoReady=false; state.trackingError=''; navigate('camera'); } else startCaptureCountdown(); }
+      if(action==='retake') {stopCamera();state.photo='';state.thumbnail='';state.photoReady=false;state.trackingError='';navigate('camera');}
+      if(action==='select') {
+        if(group==='age'||group==='frequency') state[group]=value;
+        else if(group==='zones'||group==='feelings') state[group]=new Set([value]);
+        for(const option of app.querySelectorAll(`[data-action="select"][data-group="${group}"]`)) {
+          const selected=option.dataset.value===value;
+          option.classList.toggle('selected',selected);
+          option.setAttribute(option.getAttribute('role')==='radio'?'aria-checked':'aria-pressed',String(selected));
+        }
+        const continueButton=app.querySelector('.screen > .cta');
+        if(continueButton) continueButton.disabled=false;
+      }
     });
     app.addEventListener('change',event=>{if(event.target.id==='consent'){state.consent=event.target.checked;render();}});
     const viewport = document.querySelector('.viewport');
