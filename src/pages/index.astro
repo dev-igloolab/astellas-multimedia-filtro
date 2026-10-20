@@ -108,20 +108,18 @@ import '../styles/motion.css';
       },
       {
         kind: 'mild', title: 'Tu mapa de calor indica que<br>presentas síntomas vasomotores:<br><em>LEVES<sup>1,4</sup></em>',
-        intro: 'Sin embargo, es importante que visites a tu<br>médico para realizar un seguimiento y así evitar<br>que los efectos de la menopausia<br><strong>TOMEN EL CONTROL.<sup>1,2</sup></strong>',
-        heading: 'Presta atención si:',
+        intro: 'Sin embargo, es importante que visites a tu<br>médico para realizar un seguimiento y así evitar<br>que los síntomas de la menopausia<br><strong>TOMEN EL CONTROL.<sup>1,2</sup></strong>',
         resource: 'Infórmate y descubre alternativas innovadoras que pueden ayudarte a vivir la menopausia con mayor tranquilidad y bienestar.<sup>1,2</sup>'
       },
       {
         kind: 'moderate', title: 'Tu mapa de calor indica que<br>presentas síntomas vasomotores:<br><em>MODERADOS<sup>1,4</sup></em>',
-        intro: 'Si las oleadas de calor están interfiriendo<br>con tu descanso, tu energía o tu bienestar:<br><strong>NO LOS IGNORES.<sup>1,3</sup></strong>',
-        heading: 'Síntomas como:',
+        intro: 'Sin embargo, es importante que visites a tu<br>médico para realizar un seguimiento y así evitar<br>que los síntomas de la menopausia<br><strong>TOMEN EL CONTROL.<sup>1,2</sup></strong>',
         resource: 'Infórmate, conversa con tu médico y descubre alternativas innovadoras que pueden ayudarte a vivir la menopausia con mayor tranquilidad y bienestar.<sup>1,2</sup>'
       },
       {
         kind: 'severe', title: 'Tu mapa de calor indica que<br>presentas síntomas vasomotores:<br><em>SEVEROS<sup>1,4</sup></em>',
-        intro: 'Si las oleadas de calor están interfiriendo<br>con tu descanso, tu energía o tu bienestar:<br><strong>NO LOS IGNORES<sup>1,3</sup></strong>',
-        resource: 'Acude a tu médico, empieza a darle un seguimiento a tus síntomas y EVITA que la menopausia tome el control de tu vida.<sup>1,2</sup>'
+        intro: 'Sin embargo, es importante que visites a tu<br>médico para realizar un seguimiento y así evitar<br>que los síntomas de la menopausia<br><strong>TOMEN EL CONTROL.<sup>1,2</sup></strong>',
+        resource: 'Infórmate, conversa con tu médico y descubre alternativas innovadoras que pueden ayudarte a vivir la menopausia con mayor tranquilidad y bienestar.<sup>1,2</sup>'
       }
     ];
     const attentionItems = [
@@ -133,11 +131,10 @@ import '../styles/motion.css';
     const resultLegal = '<strong>1.</strong> Thurston RC. Vasomotor symptoms. In: Crandall CJ, Bachman GA, Faubion SS, et al., eds. Menopause Practice: A Clinician’s Guide. 6th ed. Pepper Pike, OH: The North American Menopause Society, 2019:43-55. <strong>2.</strong> Monteleone P, Mascagni G, Giannini A, Genazzani AR, Simoncini T. Symptoms of menopause - global prevalence, physiology and implications. Nat Rev Endocrinol 2018;14(4):199-215. <strong>3.</strong> Williams RE, Levine KB, Kalilani L, Lewis J, Clark RV. Menopause-specific questionnaire assessment in US population-based study shows negative impact on health-related quality of life. Maturitas 2009;62(2):153-9. <strong>4.</strong> Islam RM, Bond M, Ghalbelaghi A, Wang Y, Walker-Bone K, Davis SR. Prevalence and severity of symptoms across the menopause transition: cross-sectional findings from the Australian Women’s Midlife Years (AMY) Study. Lancet Diabetes Endocrinol 2025;13(9):765-76.';
     function resultCard(variant) {
       const { kind, heading, resource } = variant;
-      const content = kind === 'none' || kind === 'mild'
-        ? `<h2>${heading}</h2><ul class="result-list">${attentionItems.map(([image, label]) => `<li>${icon(image)}<span>${label}</span></li>`).join('')}</ul>`
-        : kind === 'moderate'
-          ? `<h2>${heading}</h2><div class="result-feature">${icon('calor-termometro')}<p>Sofocos, oleadas de calor y alteración en el sueño pueden afectar hasta el <strong>75%</strong> de las mujeres durante la menopausia.<sup>1,2,4</sup></p></div><p class="result-message">Reconocer lo que estás sintiendo es el primer paso para tomar el control.</p>`
-          : `<div class="result-feature">${icon('bienestar-mental')}<p>Reconocer lo que estás sintiendo es el primer paso para tomar el control.</p></div><p class="result-message">Pero <strong>NO TE PREOCUPES,</strong> esto no significa que tengas que resignarte a vivir con ellos.<sup>1,2</sup></p>`;
+      if (kind !== 'none') {
+        return `<div class="result-card"><h2>Síntomas como:</h2><div class="result-feature">${icon('calor-repentino')}<div class="result-feature-copy"><p>Los síntomas vasomotores<br>más conocidos como sofocos<br>u oleadas de calor pueden<br>afectar <strong>hasta el 80%</strong>,<br>durante la menopausia. <sup>1,2</sup></p><p>Pero no te preocupes, esto<br>no significa que tengas que<br>resignarte a vivir con ellos.</p></div></div><p class="result-message">Reconocer lo que estás sintiendo es el<br>primer paso para tomar el control.</p><div class="result-footer"><div class="result-resource"><a class="result-qr" href="https://link.igloolab.co/2a0fff" target="_blank" rel="noopener noreferrer" aria-label="Abrir recursos sobre menopausia"><img src="${assetUrl('qr')}" alt="Código QR para consultar recursos sobre menopausia"></a><p>${resource}</p></div>${cta('SIGUIENTE')}<p class="result-legal">${resultLegal}</p></div></div>`;
+      }
+      const content = `<h2>${heading}</h2><ul class="result-list">${attentionItems.map(([image, label]) => `<li>${icon(image)}<span>${label}</span></li>`).join('')}</ul>`;
       return `<div class="result-card">${content}<div class="result-footer"><div class="result-resource"><a class="result-qr" href="https://link.igloolab.co/2a0fff" target="_blank" rel="noopener noreferrer" aria-label="Abrir recursos sobre menopausia"><img src="${assetUrl('qr')}" alt="Código QR para consultar recursos sobre menopausia"></a><p>${resource}</p></div>${cta('SIGUIENTE')}<p class="result-legal">${resultLegal}</p></div></div>`;
     }
     function render() {
@@ -176,7 +173,7 @@ import '../styles/motion.css';
         case 'zones': app.innerHTML = `<section class="screen red">${head()}<div class="center"><h1>¿En qué parte de tu<br>cuerpo sientes con mayor<br>frecuencia los sofocos?</h1><div class="zone-grid" role="radiogroup" aria-label="Parte del cuerpo">${items.zones.map(([value,label,image],i) => `<button class="zone ${state.zones.has(value) ? 'selected' : ''}" role="radio" data-action="select" data-group="zones" data-value="${value}" aria-checked="${state.zones.has(value)}">${icon(image)}<span><b>${String.fromCharCode(65+i)}.</b> ${label}</span></button>`).join('')}</div></div>${cta('SIGUIENTE',!state.zones.size)}</section>`; break;
         case 'result': {
           const variant = resultVariants[state.resultIndex];
-          app.innerHTML = `<section class="screen peach result-screen ${variant.kind}">${head(true)}<div class="result"><h1>${variant.title}</h1><p class="result-intro">${variant.intro}</p>${resultCard(variant)}</div></section>`;
+          app.innerHTML = `<section class="screen peach result-screen ${variant.kind}${variant.kind === 'none' ? '' : ' symptom-result'}">${head(true)}<div class="result"><h1>${variant.title}</h1><p class="result-intro">${variant.intro}</p>${resultCard(variant)}</div></section>`;
           break;
         }
         case 'map': app.innerHTML = `<section class="screen red map">${head()}<h1>${state.resultIndex===0?'¡ESTA ES TU FOTO!':'¡ESTE ES TU MAPA DE CALOR!'}</h1><div class="final-photo"><canvas id="thermal-map" role="img" aria-label="${state.resultIndex===0?'Tu fotografía':'Visualización térmica ilustrativa de tu fotografía'}"></canvas><p>${state.resultIndex===0?'Conocer tu cuerpo y dar seguimiento a tu salud es el primer paso para cuidarte.':'Reconocer y tratar tus síntomas es el primer paso para cuidar de ti y de tu salud futura.'}</p></div><div class="map-copy">Consulta a tu médico y<br><strong>TOMA EL CONTROL DE TU MENOPAUSIA</strong></div>${cta('SIGUIENTE',false,'next')}</section>`; if(state.photo) renderThermal(state.photo,state.zones,document.querySelector('#thermal-map'),undefined,state.resultIndex).catch(console.error); break;

@@ -14,11 +14,11 @@ const smoothstep = (low, high, value) => {
 const heatPalettes = {
   1: { edge: [117, 25, 139], core: [225, 27, 173] },
   2: { edge: [207, 75, 8], core: [255, 150, 22] },
-  3: { edge: [172, 16, 29], core: [255, 43, 36] },
+  3: { edge: [105, 0, 35], core: [255, 60, 65] },
 };
-const heatOpacity = .84;
+const heatOpacity = .94;
 const lightResponse = .35;
-const heatStrength = .68;
+const heatStrength = .82;
 const heatFalloff = 1.2;
 // La rampa del filtro original aporta sombras índigo, medios morados y luz cálida.
 const thermalStops = [
@@ -250,7 +250,7 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
       // La misma veladura se aplica en piel y ropa; solo se atenúan las zonas muy oscuras.
       const surface = smoothstep(15, 58, luminance);
       const brightSurface = smoothstep(115, 205, luminance);
-      const alpha = Math.min(.92, Math.min(heatOpacity, heatOpacity * 1.06 * (1 - Math.exp(-3.2 * warmth)))
+      const alpha = Math.min(.96, Math.min(heatOpacity, heatOpacity * 1.06 * (1 - Math.exp(-3.8 * warmth)))
         * smoothstep(.003, .11, warmth) * person * surface * (1 + .32 * brightSurface));
       if (alpha < .004) continue;
       const core = smoothstep(.12, .85, warmth);

@@ -317,3 +317,52 @@
 .result-screen .result-legal { margin: 0; color: #FFD8C4; font: 400 1.08cqw/1.12 'Myriad Variable Concept', sans-serif; text-align: left; }
 .result-screen .result-legal strong { font-weight: 400; }
 
+/* Las tres severidades comparten la composición de las visuales actualizadas. */
+.result-screen.symptom-result { --severity-color: #f01778; }
+.result-screen.symptom-result.moderate { --severity-color: #fa8800; }
+.result-screen.symptom-result.severe { --severity-color: #ff0808; }
+.result-screen.symptom-result .header { transform: translateY(-2.3cqw); }
+.result-screen.symptom-result .logo { width: 33cqw; transform: translateY(-2cqw); }
+.result-screen.symptom-result h1 { top: 20cqw; font-size: 6.05cqw; line-height: 1.04; }
+.result-screen.symptom-result h1 em { color: var(--severity-color); transform: translateY(1.8cqw); }
+.result-screen.symptom-result .result-intro { top: 42.8cqw; font-size: 4.05cqw; line-height: 1.13; }
+.result-screen.symptom-result .result-card {
+  top: 65cqw;
+  left: 6%;
+  width: 86%;
+  height: 104cqw;
+  padding: 2.7cqw 2.7cqw 1.2cqw;
+  background: var(--severity-color);
+  color: var(--peach);
+  border-radius: 4cqw;
+}
+.result-screen.symptom-result .result-card h2 { margin-bottom: 2.2cqw; font-size: 4.2cqw; }
+.result-screen.symptom-result .result-feature {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 5cqw;
+  min-height: 41cqw;
+  padding: 2.4cqw 4cqw 2.4cqw 6.9cqw;
+  text-align: left;
+  border-radius: 2.2cqw;
+}
+.result-screen.symptom-result .result-feature .icon {
+  flex: none;
+  width: 19cqw;
+  height: 19cqw;
+  margin: 0;
+  background: var(--severity-color);
+  transform: translateY(.6cqw);
+}
+.result-screen.symptom-result .result-feature-copy { flex: 1; min-width: 0; max-width: 45cqw; }
+.result-screen.symptom-result .result-feature-copy { transform: translateY(-.7cqw); }
+.result-screen.symptom-result .result-feature-copy p { font-size: 3.55cqw; line-height: 1.08; }
+.result-screen.symptom-result .result-feature-copy p + p { margin-top: 2.6cqw; }
+.result-screen.symptom-result .result-message { margin: 3.2cqw 0 0; font-size: 4.1cqw; line-height: 1.08; }
+.result-screen.symptom-result .result-footer { left: 5.5%; right: 5.5%; bottom: 2.8cqw; gap: 1.6cqw; }
+.result-screen.symptom-result .result-resource { width: 87%; min-height: 21.5cqw; gap: 2cqw; margin: 0; }
+.result-screen.symptom-result .result-qr { width: 15cqw; height: 15cqw; }
+.result-screen.symptom-result .result-resource p { color: var(--peach); font-size: 3.15cqw; line-height: 1.13; text-align: left; }
+.result-screen.symptom-result .result-card .cta { min-height: 9.3cqw; color: var(--severity-color); font-size: 4.8cqw; }
+.result-screen.symptom-result .result-legal { font-size: 1.05cqw; line-height: 1.08; }
+
