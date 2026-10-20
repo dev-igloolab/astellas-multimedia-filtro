@@ -10,7 +10,7 @@ const smoothstep = (low, high, value) => {
   return t * t * (3 - 2 * t);
 };
 
-// Un tono por severidad en todas las zonas: amarillo, morado y magenta.
+// Un tono por severidad en todas las zonas: amarillo, morado y naranja.
 const heatPalettes = {
   1: { edge: [242, 151, 20], core: [255, 205, 16] },
   2: { edge: [102, 22, 156], core: [155, 6, 202] },
@@ -20,6 +20,36 @@ const heatOpacity = .84;
 const lightResponse = .35;
 const heatStrength = .68;
 const heatFalloff = 1.2;
+// La rampa del filtro original aporta sombras índigo, medios morados y luz cálida.
+const thermalStops = [
+  [0, [5, 3, 8]], [.16, [11, 6, 46]], [.34, [45, 9, 87]],
+  [.51, [107, 11, 70]], [.67, [201, 26, 27]], [.80, [247, 84, 9]],
+  [.92, [255, 184, 28]], [1, [255, 235, 176]],
+];
+const thermalColor = temperature => {
+  const next = thermalStops.findIndex(([stop]) => temperature <= stop);
+  const end = Math.max(1, next);
+  const [startAt, startColor] = thermalStops[end - 1];
+  const [endAt, endColor] = thermalStops[end];
+  const amount = Math.max(0, Math.min(1, (temperature - startAt) / (endAt - startAt)));
+  return startColor.map((channel, index) => channel + (endColor[index] - channel) * amount);
+};
+function createThermalGrade(blackLevel, whiteLevel) {
+  const grade = new Uint8Array(256 * 6);
+  const exposureSpan = Math.max(.35, whiteLevel - blackLevel);
+  for (let luminance = 0; luminance < 256; luminance++) {
+    const normalized = Math.max(0, Math.min(1, (luminance / 255 - blackLevel) / exposureSpan));
+    const tone = Math.log1p(2 * normalized) / Math.log(3);
+    const baseTemperature = .10 + .39 * Math.pow(tone, 1.12);
+    const background = thermalColor(baseTemperature);
+    const subject = thermalColor(baseTemperature + .16);
+    for (let channel = 0; channel < 3; channel++) {
+      grade[luminance * 6 + channel] = background[channel];
+      grade[luminance * 6 + 3 + channel] = subject[channel];
+    }
+  }
+  return grade;
+}
 
 export function trackedSpots(landmarks, image, zone) {
   const width = image.width;
@@ -115,22 +145,61 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
   const { scale, x: offsetX, y: offsetY } = coverPhoto(image.width, image.height, width, height);
   const zone = typeof zones === 'string' ? zones : [...zones][0];
   const showHeat = Boolean(zone) && severity !== 0;
-  // Base térmica visible sin perder detalle ni alterar demasiado el rostro.
-  context.filter = showHeat ? 'contrast(1.10) saturate(.70) brightness(1.04)' : 'none';
+  // El contraste de la foto alimenta la escala térmica; la toma original queda intacta.
+  context.filter = showHeat ? 'contrast(1.12) brightness(.97)' : 'none';
   context.drawImage(image, offsetX, offsetY, image.width * scale, image.height * scale);
   context.filter = 'none';
-  if (showHeat) {
-    context.fillStyle = 'rgba(31, 48, 80, .14)';
-    context.fillRect(0, 0, width, height);
-  }
 
   if (!showHeat) return;
   const palette = heatPalettes[severity] ?? heatPalettes[1];
   const spots = trackedSpots(landmarks, image, zone);
   if (!spots.length) throw new Error('No pudimos ubicar la zona elegida. Repite la foto mostrando esa parte del cuerpo.');
 
+  const exposureCanvas = document.createElement('canvas');
+  exposureCanvas.width = exposureCanvas.height = 24;
+  const exposureContext = exposureCanvas.getContext('2d', { willReadFrequently: true });
+  exposureContext.drawImage(canvas, 0, 0, 24, 24);
+  const exposurePixels = exposureContext.getImageData(0, 0, 24, 24).data;
+  const luminances = [];
+  for (let index = 0; index < exposurePixels.length; index += 4) {
+    luminances.push((exposurePixels[index] * .2126 + exposurePixels[index + 1] * .7152 + exposurePixels[index + 2] * .0722) / 255);
+  }
+  luminances.sort((a, b) => a - b);
+  const thermalGrade = createThermalGrade(Math.min(.10, luminances[28]), Math.max(.60, luminances[547]));
+
   const frame = context.getImageData(0, 0, width, height);
   const pixels = frame.data;
+  const blurRadius = Math.max(3, Math.min(7, Math.round(width / 120)));
+  const blurredCanvas = document.createElement('canvas');
+  blurredCanvas.width = width;
+  blurredCanvas.height = height;
+  const blurredContext = blurredCanvas.getContext('2d', { willReadFrequently: true });
+  blurredContext.filter = `blur(${blurRadius}px)`;
+  blurredContext.drawImage(canvas, 0, 0);
+  const blurredPixels = blurredContext.getImageData(0, 0, width, height).data;
+  // Toda la foto usa la misma escala térmica: la máscara solo suma calor base a la persona.
+  for (let y = 0; y < height; y++) {
+    const sourceY = (y - offsetY) / (image.height * scale);
+    for (let x = 0; x < width; x++) {
+      const sourceX = (x - offsetX) / (image.width * scale);
+      const confidence = maskConfidence(mask, sourceX, sourceY);
+      const foreground = smoothstep(.16, .66, confidence);
+      const bodyWarmth = smoothstep(.28, .72, confidence);
+      const edge = smoothstep(0, blurRadius * 2, Math.min(x, y, width - 1 - x, height - 1 - y));
+      const blur = .78 * (1 - foreground) * edge;
+      const index = (y * width + x) * 4;
+      const imageLuma = pixels[index] * .2126 + pixels[index + 1] * .7152 + pixels[index + 2] * .0722;
+      const broadLuma = blurredPixels[index] * .2126 + blurredPixels[index + 1] * .7152 + blurredPixels[index + 2] * .0722;
+      const surfaceDetail = Math.max(-24, Math.min(24, imageLuma - broadLuma));
+      const toneLuma = imageLuma * (1 - blur) + broadLuma * blur + surfaceDetail * .22;
+      const gradeIndex = Math.max(0, Math.min(255, Math.round(toneLuma))) * 6;
+      for (let channel = 0; channel < 3; channel++) {
+        const cool = thermalGrade[gradeIndex + channel];
+        const warm = thermalGrade[gradeIndex + 3 + channel];
+        pixels[index + channel] = cool + (warm - cool) * bodyWarmth + surfaceDetail * .22;
+      }
+    }
+  }
   const heat = new Float32Array(width * height);
   const luma = ([red, green, blue]) => red * .2126 + green * .7152 + blue * .0722;
   const edgeLuma = luma(palette.edge), coreLuma = luma(palette.core);
@@ -158,7 +227,9 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
         const contour = 1 + .14 * Math.sin(localX * 2.3 + localY * 1.2 + seed)
           + .10 * Math.sin(localY * 3.4 - localX * 1.1 - seed * 1.3);
         const shapedDistance = distance * contour;
-        const glow = strength * (.72 * Math.exp(-heatFalloff * shapedDistance)
+        const texture = 1 + .08 * Math.sin(localX * 4.1 + localY * 5.3 + seed * 1.7)
+          + .05 * Math.sin(localX * 9.2 - localY * 7.1 + seed * 2.3);
+        const glow = strength * texture * (.72 * Math.exp(-heatFalloff * shapedDistance)
           + .28 * Math.exp(-heatFalloff * .48 * shapedDistance));
         const index = y * width + x;
         heat[index] = 1 - (1 - heat[index]) * (1 - glow);
@@ -172,7 +243,7 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
       const sourceX = (x - offsetX) / (image.width * scale);
       const sourceY = (y - offsetY) / (image.height * scale);
       if (sourceX < 0 || sourceX > 1 || sourceY < 0 || sourceY > 1) continue;
-      const person = smoothstep(.22, .76, maskConfidence(mask, sourceX, sourceY));
+      const person = smoothstep(.20, .60, maskConfidence(mask, sourceX, sourceY));
       const index = (y * width + x) * 4;
       const red = pixels[index], green = pixels[index + 1], blue = pixels[index + 2];
       const luminance = red * .2126 + green * .7152 + blue * .0722;
@@ -184,9 +255,12 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
       if (alpha < .004) continue;
       const core = smoothstep(.12, .85, warmth);
       const tintLuma = edgeLuma + (coreLuma - edgeLuma) * core;
+      const broadLuma = blurredPixels[index] * .2126 + blurredPixels[index + 1] * .7152 + blurredPixels[index + 2] * .0722;
+      const detail = Math.max(-18, Math.min(18, (luminance - broadLuma) * .55));
+      const toneShift = Math.max(-16, Math.min(16, (luminance - tintLuma) * lightResponse));
       for (let channel = 0; channel < 3; channel++) {
         const color = palette.edge[channel] + (palette.core[channel] - palette.edge[channel]) * core;
-        const tint = color + (luminance - tintLuma) * lightResponse * (1 - .65 * brightSurface);
+        const tint = color + toneShift + detail;
         pixels[index + channel] = pixels[index + channel] * (1 - alpha) + tint * alpha;
       }
     }
