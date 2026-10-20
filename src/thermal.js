@@ -10,11 +10,11 @@ const smoothstep = (low, high, value) => {
   return t * t * (3 - 2 * t);
 };
 
-// Un tono por severidad en todas las zonas: amarillo, morado y naranja.
+// Un tono por severidad en todas las zonas: fucsia/morado, naranja y rojo.
 const heatPalettes = {
-  1: { edge: [242, 151, 20], core: [255, 205, 16] },
-  2: { edge: [102, 22, 156], core: [155, 6, 202] },
-  3: { edge: [232, 73, 13], core: [255, 173, 7] },
+  1: { edge: [117, 25, 139], core: [225, 27, 173] },
+  2: { edge: [207, 75, 8], core: [255, 150, 22] },
+  3: { edge: [172, 16, 29], core: [255, 43, 36] },
 };
 const heatOpacity = .84;
 const lightResponse = .35;
