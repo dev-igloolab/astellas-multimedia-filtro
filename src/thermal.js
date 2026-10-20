@@ -14,12 +14,13 @@ const smoothstep = (low, high, value) => {
 const heatPalettes = {
   1: { edge: [117, 25, 139], core: [225, 27, 173] },
   2: { edge: [207, 75, 8], core: [255, 150, 22] },
-  3: { edge: [105, 0, 35], core: [255, 60, 65] },
+  3: { edge: [105, 0, 38], core: [220, 12, 50] },
 };
 const heatOpacity = .94;
 const lightResponse = .35;
 const heatStrength = .82;
 const heatFalloff = 1.2;
+const severeWarmTint = [105, 25, 130];
 // La rampa del filtro original aporta sombras índigo, medios morados y luz cálida.
 const thermalStops = [
   [0, [5, 3, 8]], [.16, [11, 6, 46]], [.34, [45, 9, 87]],
@@ -34,7 +35,7 @@ const thermalColor = temperature => {
   const amount = Math.max(0, Math.min(1, (temperature - startAt) / (endAt - startAt)));
   return startColor.map((channel, index) => channel + (endColor[index] - channel) * amount);
 };
-function createThermalGrade(blackLevel, whiteLevel) {
+function createThermalGrade(blackLevel, whiteLevel, severity) {
   const grade = new Uint8Array(256 * 6);
   const exposureSpan = Math.max(.35, whiteLevel - blackLevel);
   for (let luminance = 0; luminance < 256; luminance++) {
@@ -42,7 +43,15 @@ function createThermalGrade(blackLevel, whiteLevel) {
     const tone = Math.log1p(2 * normalized) / Math.log(3);
     const baseTemperature = .10 + .39 * Math.pow(tone, 1.12);
     const background = thermalColor(baseTemperature);
-    const subject = thermalColor(baseTemperature + .16);
+    const subjectTemperature = baseTemperature + .16;
+    const subject = thermalColor(subjectTemperature);
+    // Solo atenuar los tonos cálidos del cuerpo severo; las sombras y el fondo conservan su color.
+    const cooling = severity === 3 ? .34 * smoothstep(.38, .66, subjectTemperature) : 0;
+    if (cooling) {
+      for (let channel = 0; channel < 3; channel++) {
+        subject[channel] += (severeWarmTint[channel] - subject[channel]) * cooling;
+      }
+    }
     for (let channel = 0; channel < 3; channel++) {
       grade[luminance * 6 + channel] = background[channel];
       grade[luminance * 6 + 3 + channel] = subject[channel];
@@ -77,9 +86,9 @@ export function trackedSpots(landmarks, image, zone) {
     add('cara', { x: cheeks.x + faceWidth * .32 / width, y: cheeks.y }, faceWidth * .19, Math.min(faceHeight * .14, faceWidth * .14), .18);
     if (shouldersReady) {
       const shoulderCenter = midpoint(leftShoulder, rightShoulder);
-      add('cara', along(mouth, shoulderCenter, .80), faceWidth * .23, Math.min(faceHeight * .32, faceWidth * .40));
+      add('cara', along(mouth, shoulderCenter, .50), faceWidth * .23, Math.min(faceHeight * .32, faceWidth * .40));
     } else {
-      add('cara', along(mouth, ears, -.70), faceWidth * .23, Math.min(faceHeight * .27, faceWidth * .38));
+      add('cara', along(mouth, ears, -.38), faceWidth * .23, Math.min(faceHeight * .27, faceWidth * .38));
     }
   }
 
@@ -165,7 +174,7 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
     luminances.push((exposurePixels[index] * .2126 + exposurePixels[index + 1] * .7152 + exposurePixels[index + 2] * .0722) / 255);
   }
   luminances.sort((a, b) => a - b);
-  const thermalGrade = createThermalGrade(Math.min(.10, luminances[28]), Math.max(.60, luminances[547]));
+  const thermalGrade = createThermalGrade(Math.min(.10, luminances[28]), Math.max(.60, luminances[547]), severity);
 
   const frame = context.getImageData(0, 0, width, height);
   const pixels = frame.data;

@@ -119,9 +119,9 @@
 .camera .thumbnail { overflow: hidden; border: 1cqw solid var(--brown); border-radius: 50%; background: var(--brown); transform: translateY(1.8cqw); }
 .camera .thumbnail img, .camera .thumbnail video { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 .camera .thumbnail video { transform: scaleX(-1); }
-.camera .shutter { position: relative; width: 30cqw; height: 25cqw; flex: none; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--brown); font-size: 5cqw; }
-.camera .shutter::before { content: ''; position: absolute; width: 16cqw; height: 16cqw; border-radius: 50%; background: var(--capture-amber); transform: translateY(-1cqw); }
-.camera .shutter span { position: relative; z-index: 1; transform: translateY(-1cqw); }
+.camera .shutter-shell { width: 30cqw; height: 25cqw; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--brown); }
+.camera .shutter { position: relative; width: 16cqw; height: 16cqw; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--capture-amber); color: var(--brown); font-size: 5cqw; transform: translateY(-1cqw); }
+.camera .shutter span { position: relative; z-index: 1; }
 .camera .shutter:disabled { opacity: 1; }
 .camera .shutter.is-counting span { font-size: 8cqw; }
 .camera-info { inset: calc(69% - 2px) 0 0; z-index: 1; width: 100%; padding: 13.5cqw 7cqw 0; background: var(--brown); }
@@ -131,7 +131,7 @@
 .camera-info .cta { position: static; width: 88%; min-height: 9cqw; margin: 4.8cqw auto 0; background: var(--red); color: white; }
 .camera-info .cta:disabled { opacity: 1; }
 .camera-error:empty { display: none; }
-.camera-error { position: absolute; left: 7%; right: 7%; bottom: 4cqw; color: var(--amber); font: 400 2.8cqw/1.2 'Myriad Variable Concept', sans-serif; text-align: center; }
+.camera-error { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
 .countdown { background: var(--brown); }
 .countdown-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
@@ -191,8 +191,16 @@
 .download-screen .header { position: relative; z-index: 1; }
 .download-screen .header .home .icon { background: var(--red); }
 .download-bottom { position: absolute; bottom: 0; left: 0; right: 0; padding: 18cqw 10cqw 4cqw; background: linear-gradient(transparent, #000 90%); }
-.download-banner { display: flex; align-items: center; justify-content: center; gap: 3cqw; width: 100%; min-height: 16.5cqw; padding: 2cqw 4cqw; border: 0; border-radius: 1cqw; background: var(--amber); color: var(--brown); font: 400 5cqw/1.1 Anton, sans-serif; text-align: left; }
-.download-banner > canvas { flex: none; width: 15cqw !important; height: 15cqw !important; }
+.download-banner { display: flex; align-items: center; justify-content: center; gap: 2cqw; width: 100%; min-height: 21cqw; padding: 2cqw 3cqw; border: 0; border-radius: 1cqw; background: var(--amber); color: var(--brown); font: 400 6.25cqw/1.03 Anton, sans-serif; text-align: left; }
+.download-qr-frame { position: relative; display: grid; flex: none; place-items: center; width: 16cqw; height: 16cqw; margin-left: 3cqw; }
+.download-qr-frame canvas { display: block; width: 12cqw !important; height: 12cqw !important; }
+.download-qr-frame .corner { position: absolute; width: 2.5cqw; height: 2.5cqw; border-color: var(--brown); border-style: solid; border-width: 0; }
+.download-qr-frame .top-left { top: 0; left: 0; border-top-width: .75cqw; border-left-width: .75cqw; }
+.download-qr-frame .top-right { top: 0; right: 0; border-top-width: .75cqw; border-right-width: .75cqw; }
+.download-qr-frame .bottom-left { bottom: 0; left: 0; border-bottom-width: .75cqw; border-left-width: .75cqw; }
+.download-qr-frame .bottom-right { bottom: 0; right: 0; border-bottom-width: .75cqw; border-right-width: .75cqw; }
+.download-divider { flex: none; width: .55cqw; height: 13cqw; background: var(--brown); }
+.download-label { display: block; flex: none; white-space: nowrap; }
 .download-legal { margin: 4cqw auto 0; max-width: 64cqw; color: white; text-align: center; font: 400 2cqw/1.25 'Myriad Variable Concept', sans-serif; }
 .download-status { color: var(--peach); font-size: 3cqw; text-align: center; }
 .download-status:empty { display: none; }
@@ -365,4 +373,13 @@
 .result-screen.symptom-result .result-resource p { color: var(--peach); font-size: 3.15cqw; line-height: 1.13; text-align: left; }
 .result-screen.symptom-result .result-card .cta { min-height: 9.3cqw; color: var(--severity-color); font-size: 4.8cqw; }
 .result-screen.symptom-result .result-legal { font-size: 1.05cqw; line-height: 1.08; }
+
+.stage button:disabled,
+.stage .cta:disabled,
+.stage .shutter:disabled {
+  background: #a7a9ac;
+  color: var(--brown);
+  opacity: 1;
+}
+.stage .shutter.is-counting:disabled { background: var(--capture-amber); color: var(--brown); }
 

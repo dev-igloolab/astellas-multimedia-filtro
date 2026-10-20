@@ -152,7 +152,7 @@ import '../styles/motion.css';
               ${state.photo ? '' : `<canvas class="tracking-overlay" id="tracking-overlay" aria-hidden="true"></canvas><p class="tracking-status" id="tracking-status" role="status">UBÍCATE FRENTE A LA CÁMARA</p>${trackingPanel()}`}
               <div class="capture-bar">
                 <div class="thumbnail">${state.photo ? `<img src="${state.thumbnail || state.photo}" alt="Miniatura de la foto">` : '<video id="thumbnail-video" autoplay playsinline muted aria-hidden="true"></video>'}</div>
-              <button class="shutter" data-action="capture"><span>TOMAR</span></button>
+              <div class="shutter-shell"><button class="shutter" data-action="capture"><span>TOMAR</span></button></div>
                 <button class="retake" data-action="retake" aria-label="Repetir foto">${icon('repetir')}</button>
               </div>
             </div>
@@ -189,8 +189,8 @@ import '../styles/motion.css';
     function showDownload() {
       state.page='download';
       app.className='stage page-download';
-      app.innerHTML=`<section class="screen download-screen"><canvas id="download-preview" role="img" aria-label="${state.resultIndex===0?'Tu fotografía':'Tu foto con mapa de calor'}"></canvas>${head()}<div class="download-bottom"><button class="download-banner" data-action="download"><canvas id="photo-qr" aria-label="QR de la dirección local de la experiencia"></canvas><span>ESCANEA ESTE QR Y<br>DESCARGA TU FOTO</span></button><p class="download-status" role="status"></p><p class="download-legal">${photoDisclaimer}</p></div></section>`;
-      QRCode.toCanvas(document.querySelector('#photo-qr'),window.location.href,{width:256,margin:2,color:{dark:'#431d15',light:'#ffb755'},errorCorrectionLevel:'M'}).catch(console.error);
+    app.innerHTML=`<section class="screen download-screen"><canvas id="download-preview" role="img" aria-label="${state.resultIndex===0?'Tu fotografía':'Tu foto con mapa de calor'}"></canvas>${head()}<div class="download-bottom"><button class="download-banner" data-action="download"><span class="download-qr-frame"><canvas id="photo-qr" aria-label="QR de la dirección local de la experiencia"></canvas><i class="corner top-left" aria-hidden="true"></i><i class="corner top-right" aria-hidden="true"></i><i class="corner bottom-left" aria-hidden="true"></i><i class="corner bottom-right" aria-hidden="true"></i></span><span class="download-divider" aria-hidden="true"></span><span class="download-label">ESCANEA ESTE QR Y<br>DESCARGA TU FOTO</span></button><p class="download-status" role="status"></p><p class="download-legal">${photoDisclaimer}</p></div></section>`;
+    QRCode.toCanvas(document.querySelector('#photo-qr'),window.location.href,{width:256,margin:0,color:{dark:'#431d15',light:'#ffb755'},errorCorrectionLevel:'M'}).catch(console.error);
       if(state.photo) renderThermal(state.photo,state.zones,document.querySelector('#download-preview'),undefined,state.resultIndex).catch(console.error);
     }
     let downloadBusy=false;

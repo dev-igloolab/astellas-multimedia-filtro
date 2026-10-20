@@ -62,8 +62,8 @@ test('El mapa completo conserva zonas separadas para rostro, pecho y brazos', ()
   assert.ok(face[1][1] + face[1][3] < .28, 'el calor del cachete no llega a la boca');
   assert.ok(face[1][1] > .23 && face[1][1] < .25 && face[2][1] > .23 && face[2][1] < .25, 'ambas mejillas quedan entre ojos y boca');
   assert.ok(face[1][3] * image.height < face[1][2] * image.width, 'el cachete ocupa menos alto');
-  assert.ok(face[3][1] > .32, 'el calor del cuello queda debajo de la mandíbula');
-  assert.ok(face[3][1] > .33, 'el centro del cuello queda más abajo');
+  assert.ok(face[3][1] > .30, 'el calor del cuello queda debajo de la mandíbula');
+  assert.ok(face[3][1] > .31 && face[3][1] < .325, 'el centro del cuello queda sobre la garganta');
   assert.ok(face.every(spot => spot[6] === 'cara'));
   assert.ok(chest.every(spot => spot[6] === 'pecho'));
   assert.ok(chest[0][2] < .1, 'el calor del pecho no llega hasta ambos brazos');
