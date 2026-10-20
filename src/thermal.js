@@ -18,6 +18,8 @@ const heatPalettes = {
 };
 const heatOpacity = .84;
 const lightResponse = .35;
+const heatStrength = .68;
+const heatFalloff = 1.2;
 
 export function trackedSpots(landmarks, image, zone) {
   const width = image.width;
@@ -25,8 +27,8 @@ export function trackedSpots(landmarks, image, zone) {
   const point = index => landmarks[index];
   const size = (a, b) => Math.hypot((a.x - b.x) * width, (a.y - b.y) * height);
   const spots = { cara: [], pecho: [], brazos: [] };
-  const add = (group, center, radiusX, radiusY, strength, angle = 0) => {
-    spots[group].push([center.x, center.y, radiusX / width, radiusY / height, strength, angle, group]);
+  const add = (group, center, radiusX, radiusY, angle = 0) => {
+    spots[group].push([center.x, center.y, radiusX / width, radiusY / height, heatStrength, angle, group]);
   };
 
   const leftShoulder = point(11), rightShoulder = point(12);
@@ -40,33 +42,33 @@ export function trackedSpots(landmarks, image, zone) {
     const faceWidth = Math.max(size(point(7), point(8)), shoulderWidth * .32);
     const faceHeight = Math.max(size(eyes, mouth) * 2.5, faceWidth * .8);
     const cheeks = along(eyes, mouth, .44);
-    add('cara', { x: eyes.x, y: eyes.y - Math.min(faceHeight * .40, faceWidth * .38) / height }, faceWidth * .30, Math.min(faceHeight * .14, faceWidth * .14), .68);
-    add('cara', { x: cheeks.x - faceWidth * .32 / width, y: cheeks.y }, faceWidth * .19, Math.min(faceHeight * .14, faceWidth * .14), .67, -.18);
-    add('cara', { x: cheeks.x + faceWidth * .32 / width, y: cheeks.y }, faceWidth * .19, Math.min(faceHeight * .14, faceWidth * .14), .67, .18);
+    add('cara', { x: eyes.x, y: eyes.y - Math.min(faceHeight * .40, faceWidth * .38) / height }, faceWidth * .30, Math.min(faceHeight * .14, faceWidth * .14));
+    add('cara', { x: cheeks.x - faceWidth * .32 / width, y: cheeks.y }, faceWidth * .19, Math.min(faceHeight * .14, faceWidth * .14), -.18);
+    add('cara', { x: cheeks.x + faceWidth * .32 / width, y: cheeks.y }, faceWidth * .19, Math.min(faceHeight * .14, faceWidth * .14), .18);
     if (shouldersReady) {
       const shoulderCenter = midpoint(leftShoulder, rightShoulder);
-      add('cara', along(mouth, shoulderCenter, .80), faceWidth * .23, Math.min(faceHeight * .32, faceWidth * .40), .62);
+      add('cara', along(mouth, shoulderCenter, .80), faceWidth * .23, Math.min(faceHeight * .32, faceWidth * .40));
     } else {
-      add('cara', along(mouth, ears, -.70), faceWidth * .23, Math.min(faceHeight * .27, faceWidth * .38), .58);
+      add('cara', along(mouth, ears, -.70), faceWidth * .23, Math.min(faceHeight * .27, faceWidth * .38));
     }
   }
 
   if (shouldersReady) {
     const shoulderCenter = midpoint(leftShoulder, rightShoulder);
-    add('pecho', { x: shoulderCenter.x, y: shoulderCenter.y + shoulderWidth * .32 / height }, shoulderWidth * .31, shoulderWidth * .20, .70);
+    add('pecho', { x: shoulderCenter.x, y: shoulderCenter.y + shoulderWidth * .32 / height }, shoulderWidth * .31, shoulderWidth * .20);
   }
 
   const limb = (group, startIndex, middleIndex, endIndex, radius) => {
     const start = point(startIndex), middle = point(middleIndex), end = point(endIndex);
-    const segment = (a, b, strength, thickness) => {
+    const segment = (a, b, thickness) => {
       const dx = (b.x - a.x) * width;
       const dy = (b.y - a.y) * height;
       const length = Math.hypot(dx, dy);
       if (length < radius * .5) return;
-      add(group, midpoint(a, b), thickness, length * .28, strength, Math.atan2(-dx, dy));
+      add(group, midpoint(a, b), thickness, length * .28, Math.atan2(-dx, dy));
     };
-    if (visible(start) && visible(middle)) segment(start, middle, .72, radius);
-    if (visible(middle) && visible(end)) segment(middle, end, .60, radius * .80);
+    if (visible(start) && visible(middle)) segment(start, middle, radius);
+    if (visible(middle) && visible(end)) segment(middle, end, radius * .80);
   };
   const limbRadius = shoulderWidth * .13;
   if (limbRadius) {
@@ -111,10 +113,18 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
   canvas.height = height;
   const context = canvas.getContext('2d', { willReadFrequently: true });
   const { scale, x: offsetX, y: offsetY } = coverPhoto(image.width, image.height, width, height);
-  context.drawImage(image, offsetX, offsetY, image.width * scale, image.height * scale);
-
   const zone = typeof zones === 'string' ? zones : [...zones][0];
-  if (!zone || severity === 0) return;
+  const showHeat = Boolean(zone) && severity !== 0;
+  // Base térmica visible sin perder detalle ni alterar demasiado el rostro.
+  context.filter = showHeat ? 'contrast(1.10) saturate(.70) brightness(1.04)' : 'none';
+  context.drawImage(image, offsetX, offsetY, image.width * scale, image.height * scale);
+  context.filter = 'none';
+  if (showHeat) {
+    context.fillStyle = 'rgba(31, 48, 80, .14)';
+    context.fillRect(0, 0, width, height);
+  }
+
+  if (!showHeat) return;
   const palette = heatPalettes[severity] ?? heatPalettes[1];
   const spots = trackedSpots(landmarks, image, zone);
   if (!spots.length) throw new Error('No pudimos ubicar la zona elegida. Repite la foto mostrando esa parte del cuerpo.');
@@ -124,8 +134,7 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
   const heat = new Float32Array(width * height);
   const luma = ([red, green, blue]) => red * .2126 + green * .7152 + blue * .0722;
   const edgeLuma = luma(palette.edge), coreLuma = luma(palette.core);
-  for (const [spotIndex, [cx, cy, rx, ry, strength, angle = 0, group]] of spots.entries()) {
-    const falloff = group === 'pecho' ? 1.2 : group === 'cara' ? 1.2 : 1.5;
+  for (const [spotIndex, [cx, cy, rx, ry, strength, angle = 0]] of spots.entries()) {
     const seed = spotIndex * 2.4;
     const centerX = offsetX + cx * image.width * scale;
     const centerY = offsetY + cy * image.height * scale;
@@ -149,8 +158,8 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
         const contour = 1 + .14 * Math.sin(localX * 2.3 + localY * 1.2 + seed)
           + .10 * Math.sin(localY * 3.4 - localX * 1.1 - seed * 1.3);
         const shapedDistance = distance * contour;
-        const glow = strength * (.72 * Math.exp(-falloff * shapedDistance)
-          + .28 * Math.exp(-falloff * .48 * shapedDistance));
+        const glow = strength * (.72 * Math.exp(-heatFalloff * shapedDistance)
+          + .28 * Math.exp(-heatFalloff * .48 * shapedDistance));
         const index = y * width + x;
         heat[index] = 1 - (1 - heat[index]) * (1 - glow);
       }
@@ -167,17 +176,17 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
       const index = (y * width + x) * 4;
       const red = pixels[index], green = pixels[index + 1], blue = pixels[index + 2];
       const luminance = red * .2126 + green * .7152 + blue * .0722;
-      const skinAffinity = .58 + .42 * smoothstep(-4, 18, red - green) * smoothstep(-6, 16, green - blue);
-      const surface = skinAffinity * smoothstep(15, 58, luminance);
-      // Una veladura suave conserva la luz y la textura; el pelo recibe menos color.
-      const alpha = Math.min(heatOpacity, heatOpacity * 1.06 * (1 - Math.exp(-3.2 * warmth)))
-        * smoothstep(.003, .11, warmth) * person * surface;
+      // La misma veladura se aplica en piel y ropa; solo se atenúan las zonas muy oscuras.
+      const surface = smoothstep(15, 58, luminance);
+      const brightSurface = smoothstep(115, 205, luminance);
+      const alpha = Math.min(.92, Math.min(heatOpacity, heatOpacity * 1.06 * (1 - Math.exp(-3.2 * warmth)))
+        * smoothstep(.003, .11, warmth) * person * surface * (1 + .32 * brightSurface));
       if (alpha < .004) continue;
       const core = smoothstep(.12, .85, warmth);
       const tintLuma = edgeLuma + (coreLuma - edgeLuma) * core;
       for (let channel = 0; channel < 3; channel++) {
         const color = palette.edge[channel] + (palette.core[channel] - palette.edge[channel]) * core;
-        const tint = color + (luminance - tintLuma) * lightResponse;
+        const tint = color + (luminance - tintLuma) * lightResponse * (1 - .65 * brightSurface);
         pixels[index + channel] = pixels[index + channel] * (1 - alpha) + tint * alpha;
       }
     }

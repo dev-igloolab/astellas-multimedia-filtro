@@ -72,6 +72,7 @@ test('El mapa completo conserva zonas separadas para rostro, pecho y brazos', ()
   assert.deepEqual(wholeBody.filter(spot => spot[6] === 'cara'), face);
   assert.deepEqual(wholeBody.filter(spot => spot[6] === 'pecho'), chest);
   assert.deepEqual(wholeBody.filter(spot => spot[6] === 'brazos'), arms);
+  assert.ok(wholeBody.every(spot => spot[4] === face[0][4]), 'todas las zonas usan la misma intensidad de calor');
   assert.ok(wholeBody.every(spot => spot[6] !== 'abdomen'));
   assert.ok(wholeBody.every(spot => spot[6] !== 'piernas'));
   assert.deepEqual(trackedSpots(points, image, 'piernas'), []);
