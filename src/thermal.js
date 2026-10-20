@@ -1,5 +1,6 @@
 import { analyzePhoto } from './pose.js';
 import { coverPhoto } from './photo-frame.js';
+import { sampleMask } from './mask-sampler.js';
 
 // El color es una ilustración, no una medición de temperatura.
 const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
@@ -186,12 +187,11 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
   blurredContext.filter = `blur(${blurRadius}px)`;
   blurredContext.drawImage(canvas, 0, 0);
   const blurredPixels = blurredContext.getImageData(0, 0, width, height).data;
+  const confidenceMap = sampleMask(mask, width, height, image.width * scale, image.height * scale, offsetX, offsetY);
   // Toda la foto usa la misma escala térmica: la máscara solo suma calor base a la persona.
   for (let y = 0; y < height; y++) {
-    const sourceY = (y - offsetY) / (image.height * scale);
     for (let x = 0; x < width; x++) {
-      const sourceX = (x - offsetX) / (image.width * scale);
-      const confidence = maskConfidence(mask, sourceX, sourceY);
+      const confidence = confidenceMap[y * width + x];
       const foreground = smoothstep(.16, .66, confidence);
       const bodyWarmth = smoothstep(.28, .72, confidence);
       const edge = smoothstep(0, blurRadius * 2, Math.min(x, y, width - 1 - x, height - 1 - y));
@@ -252,7 +252,7 @@ export async function renderThermal(photo, zones, canvas, size, severity = 1) {
       const sourceX = (x - offsetX) / (image.width * scale);
       const sourceY = (y - offsetY) / (image.height * scale);
       if (sourceX < 0 || sourceX > 1 || sourceY < 0 || sourceY > 1) continue;
-      const person = smoothstep(.20, .60, maskConfidence(mask, sourceX, sourceY));
+      const person = smoothstep(.20, .60, confidenceMap[y * width + x]);
       const index = (y * width + x) * 4;
       const red = pixels[index], green = pixels[index + 1], blue = pixels[index + 2];
       const luminance = red * .2126 + green * .7152 + blue * .0722;

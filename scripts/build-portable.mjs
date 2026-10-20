@@ -1,6 +1,7 @@
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { Script } from 'node:vm';
+import { staticAssets, visionAssets } from '../src/asset-manifest.js';
 
 const root = resolve(import.meta.dirname, '..');
 const dist = resolve(root, 'dist');
@@ -48,19 +49,11 @@ for (const match of [...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*>/g)]) {
 }
 
 // Los recursos usados por JavaScript también deben quedar dentro del archivo portable.
-const iconNames = await readdir(resolve(dist, 'assets', 'iconos'));
-const assetData = Object.fromEntries(await Promise.all(iconNames.filter(name => name.endsWith('.webp')).map(async name => [name.slice(0, -5), await dataUrl(`/assets/iconos/${name}`)])));
-assetData.logo = await dataUrl('/assets/logos/astellas-blanco.webp');
-assetData.logoColor = await dataUrl('/assets/logos/astellas-color.webp');
-assetData.background = await dataUrl('/assets/fondos/inicio.webp');
-assetData.qr = await dataUrl('/assets/qr/menopausia-figma.svg');
-const visionData = Object.fromEntries(await Promise.all(Object.entries({
-  model: '/models/pose_landmarker_lite.task',
-  loader: '/mediapipe/vision_wasm_internal.js',
-  wasm: '/mediapipe/vision_wasm_internal.wasm',
-  loaderFallback: '/mediapipe/vision_wasm_nosimd_internal.js',
-  wasmFallback: '/mediapipe/vision_wasm_nosimd_internal.wasm',
-}).map(async ([name, path]) => [name, await dataUrl(path)])));
+const embedAssets = async assets => Object.fromEntries(await Promise.all(
+  Object.entries(assets).map(async ([name, path]) => [name, await dataUrl(path)])
+));
+const assetData = await embedAssets(staticAssets);
+const visionData = await embedAssets(visionAssets);
 for (const match of [...html.matchAll(/<script\b[^>]*\btype="module"[^>]*\bsrc="([^"]+)"[^>]*><\/script>/g)]) {
   const file = fileFor(match[1]);
   if (!file) throw new Error(`Script externo no compatible: ${match[1]}`);

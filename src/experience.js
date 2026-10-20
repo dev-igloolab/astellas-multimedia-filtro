@@ -1,0 +1,683 @@
+import { assetUrl, warmAsset, preloadImages } from './assets.js';
+import { renderThermal, validateTrackedZone } from './thermal.js';
+import {
+  prepareTracking,
+  analyzePhoto,
+  clearPhotoAnalysis,
+  startLiveTracking,
+} from './pose.js';
+import { drawTrackingOverlay } from './tracking-overlay.js';
+import { visibleCaptureFrame } from './capture-frame.js';
+import { resultForAnswers } from './results.js';
+import QRCode from 'qrcode';
+const app = document.querySelector('#app');
+const state = {
+  page: 'intro',
+  resultIndex: 0,
+  consent: false,
+  assetsReady: false,
+  assetsError: false,
+  assetsLoading: false,
+  photo: '',
+  thumbnail: '',
+  photoReady: false,
+  analyzing: false,
+  trackingError: '',
+  stream: null,
+  age: '',
+  frequency: '',
+  feelings: new Set(),
+  zones: new Set(),
+  timer: null,
+};
+async function preloadAssets() {
+  if (state.assetsLoading) return;
+  state.assetsLoading = true;
+  state.assetsError = false;
+  const images = preloadImages();
+  const fonts = [
+    '400 38px Anton',
+    '400 38px "Myriad Variable Concept"',
+    '700 38px "Myriad Variable Concept"',
+  ].map((font) => document.fonts.load(font, '¡¿ÁÉÍÓÚáéíóúñÑ'));
+  const results = await Promise.allSettled([
+    ...images,
+    ...fonts,
+    document.fonts.ready,
+    prepareTracking(),
+  ]);
+  state.assetsReady = results.every((result) => result.status === 'fulfilled');
+  state.assetsError = !state.assetsReady;
+  state.assetsLoading = false;
+  if (state.assetsReady) {
+    app.style.setProperty('--intro-image', `url("${assetUrl('background')}")`);
+  }
+  if (state.assetsError)
+    console.error(
+      'No se pudieron precargar todos los recursos.',
+      results.filter((result) => result.status === 'rejected'),
+    );
+  if (state.page === 'intro') render();
+}
+const icon = (name, extra = '') =>
+  `<span class="icon ${extra}" style="--image:url('${assetUrl(name)}')" aria-hidden="true"></span>`;
+const trackingIndicators = [
+  ['cara', 'cara-cuello', 'ROSTRO'],
+  ['pecho', 'pecho-espalda', 'PECHO'],
+  ['brazos', 'brazos-piernas', 'BRAZOS'],
+];
+const trackingPanel = () =>
+  `<div class="detection-rail" role="list" aria-label="Zonas detectadas">${trackingIndicators.map(([zone, asset, label]) => `<div class="detection-zone" data-detection-zone="${zone}" data-detected="false" role="listitem" aria-label="${label}: sin detectar">${icon(asset)}<span>${label}</span></div>`).join('')}</div>`;
+const logo = (colored = false) =>
+  `<img class="logo" src="${assetUrl(colored ? 'logoColor' : 'logo')}" alt="Astellas">`;
+const head = (light = false) =>
+  `<header class="header ${light ? 'light' : ''}">${logo(light)}<button class="home" data-action="home" aria-label="Ir al inicio">${icon('inicio')}</button></header>`;
+const cta = (label = 'SIGUIENTE', disabled = false, action = 'next') =>
+  `<button class="cta" data-action="${action}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+const items = {
+  age: [
+    ['30-40', 'Entre los 30 a 40 años'],
+    ['40-55', 'Entre los 40 a 55 años'],
+    ['55-60', 'Entre los 55 a 60 años'],
+    ['60+', '+ de 60 años'],
+  ],
+  frequency: [
+    ['never', 'Nunca'],
+    ['sometimes', 'Ocasionalmente'],
+    ['often', 'Varias veces al día'],
+  ],
+  feelings: [
+    ['calor', 'Calor repentino'],
+    ['sudor', 'Sudoración'],
+    ['interrumpe', 'Interrumpe mis actividades'],
+    ['todas', 'Todas las anteriores'],
+    ['ambas', 'A y B'],
+  ],
+  zones: [
+    ['cara', 'Cara y cuello', 'cara-cuello'],
+    ['pecho', 'Pecho y espalda', 'pecho-espalda'],
+    ['cuerpo', 'Todo el cuerpo', 'todo-cuerpo'],
+    ['extremidades', 'Brazos y antebrazos', 'brazos-piernas'],
+  ],
+};
+const choices = (group) =>
+  items[group]
+    .map(([value, label], i) => {
+      const selected =
+        group === 'age' || group === 'frequency'
+          ? state[group] === value
+          : state[group].has(value);
+      return `<button class="choice ${selected ? 'selected' : ''}" data-action="select" data-group="${group}" data-value="${value}" aria-pressed="${selected}"><b>${String.fromCharCode(65 + i)}.</b><span>${label}</span></button>`;
+    })
+    .join('');
+const resultVariants = [
+  {
+    kind: 'none',
+    title:
+      '¡Enhorabuena!<br>Nos has indicado que aún no<br>presentas síntomas vasomotores<sup>1,2</sup>',
+    intro:
+      'Sin embargo, es importante que visites a tu<br>médico para realizar un seguimiento y así evitar<br>que los efectos de la menopausia<br><strong>TOMEN EL CONTROL.<sup>1,2</sup></strong>',
+    heading: 'Presta atención si:',
+    resource:
+      'Infórmate y descubre alternativas innovadoras que pueden ayudarte a vivir la menopausia con mayor tranquilidad y bienestar.<sup>1,2</sup>',
+  },
+  {
+    kind: 'mild',
+    title:
+      'Tu mapa de calor indica que<br>presentas síntomas vasomotores:<br><em>LEVES<sup>1,4</sup></em>',
+    intro:
+      'Sin embargo, es importante que visites a tu<br>médico para realizar un seguimiento y así evitar<br>que los síntomas de la menopausia<br><strong>TOMEN EL CONTROL.<sup>1,2</sup></strong>',
+    resource:
+      'Infórmate y descubre alternativas innovadoras que pueden ayudarte a vivir la menopausia con mayor tranquilidad y bienestar.<sup>1,2</sup>',
+  },
+  {
+    kind: 'moderate',
+    title:
+      'Tu mapa de calor indica que<br>presentas síntomas vasomotores:<br><em>MODERADOS<sup>1,4</sup></em>',
+    intro:
+      'Sin embargo, es importante que visites a tu<br>médico para realizar un seguimiento y así evitar<br>que los síntomas de la menopausia<br><strong>TOMEN EL CONTROL.<sup>1,2</sup></strong>',
+    resource:
+      'Infórmate, conversa con tu médico y descubre alternativas innovadoras que pueden ayudarte a vivir la menopausia con mayor tranquilidad y bienestar.<sup>1,2</sup>',
+  },
+  {
+    kind: 'severe',
+    title:
+      'Tu mapa de calor indica que<br>presentas síntomas vasomotores:<br><em>SEVEROS<sup>1,4</sup></em>',
+    intro:
+      'Sin embargo, es importante que visites a tu<br>médico para realizar un seguimiento y así evitar<br>que los síntomas de la menopausia<br><strong>TOMEN EL CONTROL.<sup>1,2</sup></strong>',
+    resource:
+      'Infórmate, conversa con tu médico y descubre alternativas innovadoras que pueden ayudarte a vivir la menopausia con mayor tranquilidad y bienestar.<sup>1,2</sup>',
+  },
+];
+const attentionItems = [
+  ['calor-repentino', 'Las oleadas de calor aumentan<sup>1,2</sup>'],
+  ['sudoracion-nocturna', 'Tu sueño se ve alterado<sup>1,2</sup>'],
+  ['cambios-animo', 'Cambias de ánimo repentinamente<sup>1,2,3</sup>'],
+  ['concentracion', 'No te puedes concentrar<sup>2,3</sup>'],
+];
+const resultLegal =
+  '<strong>1.</strong> Thurston RC. Vasomotor symptoms. In: Crandall CJ, Bachman GA, Faubion SS, et al., eds. Menopause Practice: A Clinician’s Guide. 6th ed. Pepper Pike, OH: The North American Menopause Society, 2019:43-55. <strong>2.</strong> Monteleone P, Mascagni G, Giannini A, Genazzani AR, Simoncini T. Symptoms of menopause - global prevalence, physiology and implications. Nat Rev Endocrinol 2018;14(4):199-215. <strong>3.</strong> Williams RE, Levine KB, Kalilani L, Lewis J, Clark RV. Menopause-specific questionnaire assessment in US population-based study shows negative impact on health-related quality of life. Maturitas 2009;62(2):153-9. <strong>4.</strong> Islam RM, Bond M, Ghalbelaghi A, Wang Y, Walker-Bone K, Davis SR. Prevalence and severity of symptoms across the menopause transition: cross-sectional findings from the Australian Women’s Midlife Years (AMY) Study. Lancet Diabetes Endocrinol 2025;13(9):765-76.';
+function resultCard(variant) {
+  const { kind, heading, resource } = variant;
+  if (kind !== 'none') {
+    return `<div class="result-card"><h2>Síntomas como:</h2><div class="result-feature">${icon('calor-repentino')}<div class="result-feature-copy"><p>Los síntomas vasomotores<br>más conocidos como sofocos<br>u oleadas de calor pueden<br>afectar <strong>hasta el 80%</strong>,<br>durante la menopausia. <sup>1,2</sup></p><p>Pero no te preocupes, esto<br>no significa que tengas que<br>resignarte a vivir con ellos.</p></div></div><p class="result-message">Reconocer lo que estás sintiendo es el<br>primer paso para tomar el control.</p><div class="result-footer"><div class="result-resource"><a class="result-qr" href="https://link.igloolab.co/2a0fff" target="_blank" rel="noopener noreferrer" aria-label="Abrir recursos sobre menopausia"><img src="${assetUrl('qr')}" alt="Código QR para consultar recursos sobre menopausia"></a><p>${resource}</p></div>${cta('SIGUIENTE')}<p class="result-legal">${resultLegal}</p></div></div>`;
+  }
+  const content = `<h2>${heading}</h2><ul class="result-list">${attentionItems.map(([image, label]) => `<li>${icon(image)}<span>${label}</span></li>`).join('')}</ul>`;
+  return `<div class="result-card">${content}<div class="result-footer"><div class="result-resource"><a class="result-qr" href="https://link.igloolab.co/2a0fff" target="_blank" rel="noopener noreferrer" aria-label="Abrir recursos sobre menopausia"><img src="${assetUrl('qr')}" alt="Código QR para consultar recursos sobre menopausia"></a><p>${resource}</p></div>${cta('SIGUIENTE')}<p class="result-legal">${resultLegal}</p></div></div>`;
+}
+function render() {
+  app.className = `stage page-${state.page}`;
+  switch (state.page) {
+    case 'intro':
+      app.innerHTML = `<section class="screen intro">${logo()}<div class="intro-center"><h1>¿Tu menopausia te controla?</h1><div class="line"></div><p>Te invitamos a realizar este test para descubrir qué tanto conoces y escuchas a tu cuerpo durante esta etapa.</p>${cta(state.assetsLoading ? 'CARGANDO...' : 'INICIAR', !state.consent || !state.assetsReady)}</div><div class="intro-footer"><label class="consent"><input id="consent" type="checkbox" ${state.consent ? 'checked' : ''}><span>Al participar en esta experiencia, autorizo la captura y uso de mi fotografía exclusivamente para el desarrollo y visualización de la experiencia interactiva. Entiendo que mi imagen será utilizada para<br>generar la visualización térmica personalizada y no para otros fines distintos a los aquí descritos.</span></label><div class="legal"><strong>MAT-CO-VEO-2026-00024</strong><p>Campaña educativa de orientación general. No sustituye la consulta médica ni sirve para tratar condiciones de salud. Ante síntomas o dudas, consulte a su médico. Para notificar un evento adverso o cualquier situación relacionada con la seguridad de un producto de Astellas, contáctenos en: safetyco@astellas.com</p></div></div></section>`;
+      break;
+    case 'instructions':
+      app.innerHTML = `<section class="screen red">${head()}<div class="center instructions">${icon('listo', 'check')}<h1>¿Estás lista?</h1><p>Sigue estos pasos:</p><ol><li><b>1.</b><span>Ubícate frente a la cámara,<br>dejando tus hombros dentro del encuadre.</span></li><li><b>2.</b><span>Procura que tu rostro se<br>vea con claridad.</span></li><li><b>3.</b><span>¡Y listo!, prepárate para<br>comenzar esta experiencia.</span></li></ol></div>${cta()}</section>`;
+      break;
+    case 'camera':
+      app.innerHTML = `<section class="screen camera">
+        <div class="preview">
+          <div class="camera-feed">
+            <video id="video" autoplay playsinline muted></video>
+            ${state.photo ? `<img src="${state.photo}" alt="Foto capturada">` : ''}
+          </div>
+          ${state.photo ? '' : `<canvas class="tracking-overlay" id="tracking-overlay" aria-hidden="true"></canvas><p class="tracking-status" id="tracking-status" role="status">UBÍCATE FRENTE A LA CÁMARA</p>${trackingPanel()}`}
+          <div class="capture-bar">
+            <div class="thumbnail">${state.photo ? `<img src="${state.thumbnail || state.photo}" alt="Miniatura de la foto">` : '<video id="thumbnail-video" autoplay playsinline muted aria-hidden="true"></video>'}</div>
+          <div class="shutter-shell"><button class="shutter" data-action="capture"><span>TOMAR</span></button></div>
+            <button class="retake" data-action="retake" aria-label="Repetir foto">${icon('repetir')}</button>
+          </div>
+        </div>
+        <div class="camera-heading"><h1>¡Cada mujer es diferente!</h1><button class="home" data-action="home" aria-label="Ir al inicio">${icon('inicio')}</button></div>
+        <div class="camera-info">
+          <h2>Por eso esta activación será<br>100% PERSONALIZADA</h2>
+          <p>Tómate una foto y déjanos conocerte.</p>
+          <p class="camera-error" id="camera-error" role="status">${state.trackingError || (state.analyzing ? 'Ubicando tu cuerpo en la foto...' : '')}</p>
+          ${cta(state.analyzing ? 'ANALIZANDO...' : 'SIGUIENTE', !state.photoReady)}
+        </div>
+      </section>`;
+      if (!state.photo) startCamera();
+      break;
+    case 'countdown':
+      app.innerHTML = `<section class="screen countdown">${state.photo ? `<img class="countdown-photo" src="${state.photo}" alt="">` : ''}${head()}<div class="center">${icon('imagen', 'large-icon')}<h1>Evaluando la fotografía.</h1><p>Tu resultado completo<br>aparecerá pronto</p>${icon('continuar-abajo', 'chevrons')}<div class="count" id="count"><span>3</span><i class="count-dot" aria-hidden="true"></i></div></div></section>`;
+      break;
+    case 'age':
+      app.innerHTML = `<section class="screen peach">${head(true)}<div class="center">${icon('grupo-mujeres', 'large-icon')}<h1>¿En qué rango de edad<br>te encuentras?</h1><div class="choices">${choices('age')}</div></div>${cta('SIGUIENTE', !state.age)}</section>`;
+      break;
+    case 'frequency':
+      app.innerHTML = `<section class="screen amber">${head()}<div class="center">${state.photo ? `<img class="avatar" src="${state.photo}" alt="Tu foto">` : ''}<h1>Bienvenida</h1><p>¡Es momento de cambiar la conversación sobre la menopausia y pasar de los prejuicios al control!</p><div class="dark-card"><h2>¿Con qué frecuencia sientes sofocos<br>o episodios repentinos de calor?</h2><div class="choices">${choices('frequency')}</div></div></div>${cta('SIGUIENTE', !state.frequency)}</section>`;
+      break;
+    case 'feelings':
+      app.innerHTML = `<section class="screen amber">${head()}<div class="center"><div class="dark-card">${icon('sofoco', 'large-icon')}<h1>¿Qué sientes<br>cuando aparece el<br>sofoco?</h1><div class="choices">${choices('feelings')}</div></div></div>${cta('SIGUIENTE', !state.feelings.size)}</section>`;
+      break;
+    case 'zones':
+      app.innerHTML = `<section class="screen red">${head()}<div class="center"><h1>¿En qué parte de tu<br>cuerpo sientes con mayor<br>frecuencia los sofocos?</h1><div class="zone-grid" role="radiogroup" aria-label="Parte del cuerpo">${items.zones.map(([value, label, image], i) => `<button class="zone ${state.zones.has(value) ? 'selected' : ''}" role="radio" data-action="select" data-group="zones" data-value="${value}" aria-checked="${state.zones.has(value)}">${icon(image)}<span><b>${String.fromCharCode(65 + i)}.</b> ${label}</span></button>`).join('')}</div></div>${cta('SIGUIENTE', !state.zones.size)}</section>`;
+      break;
+    case 'result': {
+      const variant = resultVariants[state.resultIndex];
+      app.innerHTML = `<section class="screen peach result-screen ${variant.kind}${variant.kind === 'none' ? '' : ' symptom-result'}">${head(true)}<div class="result"><h1>${variant.title}</h1><p class="result-intro">${variant.intro}</p>${resultCard(variant)}</div></section>`;
+      break;
+    }
+    case 'map':
+      app.innerHTML = `<section class="screen red map">${head()}<h1>${state.resultIndex === 0 ? '¡ESTA ES TU FOTO!' : '¡ESTE ES TU MAPA DE CALOR!'}</h1><div class="final-photo"><canvas id="thermal-map" role="img" aria-label="${state.resultIndex === 0 ? 'Tu fotografía' : 'Visualización térmica ilustrativa de tu fotografía'}"></canvas><p>${state.resultIndex === 0 ? 'Conocer tu cuerpo y dar seguimiento a tu salud es el primer paso para cuidarte.' : 'Reconocer y tratar tus síntomas es el primer paso para cuidar de ti y de tu salud futura.'}</p></div><div class="map-copy">Consulta a tu médico y<br><strong>TOMA EL CONTROL DE TU MENOPAUSIA</strong></div>${cta('SIGUIENTE', false, 'next')}</section>`;
+      if (state.photo)
+        renderThermal(
+          state.photo,
+          state.zones,
+          document.querySelector('#thermal-map'),
+          undefined,
+          state.resultIndex,
+        ).catch(console.error);
+      break;
+  }
+  if (state.page === 'intro' && state.assetsError) {
+    const retry = app.querySelector('.intro .cta');
+    retry.textContent = 'REINTENTAR CARGA';
+    retry.dataset.action = 'retry-assets';
+    retry.disabled = false;
+  }
+}
+const photoDisclaimer =
+  'Campaña educativa de orientación general. No sustituye la consulta médica ni sirve para tratar condiciones de salud. Ante síntomas o dudas, consulte a su médico.';
+function showDownload() {
+  state.page = 'download';
+  app.className = 'stage page-download';
+  app.innerHTML = `<section class="screen download-screen"><canvas id="download-preview" role="img" aria-label="${state.resultIndex === 0 ? 'Tu fotografía' : 'Tu foto con mapa de calor'}"></canvas>${head()}<div class="download-bottom"><button class="download-banner" data-action="download"><span class="download-qr-frame"><canvas id="photo-qr" aria-label="QR de la dirección local de la experiencia"></canvas><i class="corner top-left" aria-hidden="true"></i><i class="corner top-right" aria-hidden="true"></i><i class="corner bottom-left" aria-hidden="true"></i><i class="corner bottom-right" aria-hidden="true"></i></span><span class="download-divider" aria-hidden="true"></span><span class="download-label">ESCANEA ESTE QR Y<br>DESCARGA TU FOTO</span></button><p class="download-status" role="status"></p><p class="download-legal">${photoDisclaimer}</p></div></section>`;
+  QRCode.toCanvas(document.querySelector('#photo-qr'), window.location.href, {
+    width: 256,
+    margin: 0,
+    color: { dark: '#431d15', light: '#ffb755' },
+    errorCorrectionLevel: 'M',
+  }).catch(console.error);
+  if (state.photo)
+    renderThermal(
+      state.photo,
+      state.zones,
+      document.querySelector('#download-preview'),
+      undefined,
+      state.resultIndex,
+    ).catch(console.error);
+}
+let downloadBusy = false;
+async function downloadPhoto() {
+  if (downloadBusy || !state.photo) return;
+  downloadBusy = true;
+  try {
+    await document.fonts.ready;
+    const filteredPhoto = document.createElement('canvas');
+    await renderThermal(
+      state.photo,
+      state.zones,
+      filteredPhoto,
+      { width: 936, height: 1590 },
+      state.resultIndex,
+    );
+    const brand = await warmAsset('logo');
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1920;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ee1c3d';
+    ctx.fillRect(0, 0, 1080, 1920);
+    const logoHeight = (300 * brand.height) / brand.width;
+    ctx.drawImage(brand, 390, (160 - logoHeight) / 2, 300, logoHeight);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(72, 168, 936, 1590);
+    ctx.drawImage(filteredPhoto, 72, 168, 936, 1590);
+    const legalShade = ctx.createLinearGradient(0, 1460, 0, 1758);
+    legalShade.addColorStop(0, '#0000');
+    legalShade.addColorStop(1, '#000d');
+    ctx.fillStyle = legalShade;
+    ctx.fillRect(72, 1460, 936, 298);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = '400 21px "Myriad Variable Concept"';
+    const lines = [];
+    let line = '';
+    for (const word of photoDisclaimer.split(' ')) {
+      const next = line ? line + ' ' + word : word;
+      if (ctx.measureText(next).width > 700 && line) {
+        lines.push(line);
+        line = word;
+      } else line = next;
+    }
+    if (line) lines.push(line);
+    lines.forEach((text, index) => ctx.fillText(text, 540, 1660 + index * 25));
+    ctx.font = '400 46px Anton';
+    ctx.fillText('#TomaElControlDeTuMenopausia', 540, 1840);
+    const blob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, 'image/png'),
+    );
+    if (!blob) throw new Error('No se pudo generar la imagen');
+    const url = URL.createObjectURL(blob),
+      link = document.createElement('a');
+    link.href = url;
+    link.download = 'Astellas-TomaElControl.png';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (error) {
+    console.error(error);
+    const status = document.querySelector('.download-status');
+    if (status)
+      status.textContent = 'No se pudo descargar la foto. Intenta de nuevo.';
+  } finally {
+    downloadBusy = false;
+  }
+}
+let stopTracking = () => {};
+let cameraSession = 0;
+let captureTimer = null;
+function cancelCaptureCountdown() {
+  if (captureTimer !== null) clearInterval(captureTimer);
+  captureTimer = null;
+}
+function resetCaptureCountdown() {
+  cancelCaptureCountdown();
+  const button = document.querySelector('.camera .shutter');
+  if (button) {
+    button.disabled = false;
+    button.classList.remove('is-counting');
+    button.querySelector('span').textContent = 'TOMAR';
+  }
+}
+function stopCamera() {
+  cancelCaptureCountdown();
+  cameraSession++;
+  stopTracking();
+  stopTracking = () => {};
+  state.stream?.getTracks().forEach((t) => t.stop());
+  state.stream = null;
+}
+async function startCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    cameraError('La cámara no está disponible en este navegador.');
+    return;
+  }
+  const session = ++cameraSession;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 } },
+      audio: false,
+    });
+    if (state.page !== 'camera' || state.photo || session !== cameraSession) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+    state.stream = stream;
+    const video = document.querySelector('#video');
+    video.srcObject = stream;
+    document.querySelector('#thumbnail-video').srcObject = stream;
+    const overlay = document.querySelector('#tracking-overlay');
+    const status = document.querySelector('#tracking-status');
+    const indicators = [...app.querySelectorAll('[data-detection-zone]')];
+    stopTracking = startLiveTracking(
+      video,
+      (landmarks, frame) => {
+        if (session !== cameraSession || !overlay?.isConnected) return;
+        const detected = drawTrackingOverlay(overlay, landmarks, frame);
+        const message = detected.length
+          ? 'ZONAS DETECTADAS'
+          : 'UBÍCATE FRENTE A LA CÁMARA';
+        if (status.textContent !== message) status.textContent = message;
+        const hasDetection = String(detected.length > 0);
+        if (status.dataset.active !== hasDetection)
+          status.dataset.active = hasDetection;
+        const activeZones = new Set(detected);
+        for (const item of indicators) {
+          const active = activeZones.has(item.dataset.detectionZone);
+          if (item.dataset.detected === String(active)) continue;
+          item.dataset.detected = String(active);
+          item.setAttribute(
+            'aria-label',
+            `${item.textContent.trim()}: ${active ? 'detectada' : 'sin detectar'}`,
+          );
+        }
+      },
+      (error) => {
+        console.error('No se pudo mostrar el seguimiento en vivo.', error);
+        cameraError(
+          'No se pudo mostrar el seguimiento en vivo. Puedes repetir la foto.',
+        );
+      },
+    );
+  } catch {
+    if (session === cameraSession)
+      cameraError(
+        'Activa el permiso de cámara y pulsa repetir para continuar.',
+      );
+  }
+}
+function cameraError(text) {
+  const el = document.querySelector('#camera-error');
+  if (el) el.textContent = text;
+}
+function startCaptureCountdown() {
+  if (state.page !== 'camera' || state.photo || captureTimer !== null) return;
+  const video = document.querySelector('#video');
+  if (!video?.videoWidth || !state.stream?.active) {
+    cameraError('Espera a que la cámara esté lista.');
+    return;
+  }
+  const button = document.querySelector('.shutter');
+  const label = button?.querySelector('span');
+  if (!button || !label) return;
+  const session = cameraSession;
+  const deadline = performance.now() + 5000;
+  let remaining = 5;
+  button.disabled = true;
+  button.classList.add('is-counting');
+  label.textContent = String(remaining);
+  captureTimer = setInterval(() => {
+    if (state.page !== 'camera' || state.photo || session !== cameraSession) {
+      cancelCaptureCountdown();
+      return;
+    }
+    if (!state.stream?.active || !video.isConnected || !video.videoWidth) {
+      resetCaptureCountdown();
+      cameraError(
+        'La cámara se desconectó. Pulsa repetir para intentar de nuevo.',
+      );
+      return;
+    }
+    const next = Math.max(0, Math.ceil((deadline - performance.now()) / 1000));
+    if (next === remaining) return;
+    remaining = next;
+    if (next > 0) {
+      label.textContent = String(next);
+      return;
+    }
+    cancelCaptureCountdown();
+    capture();
+  }, 100);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && captureTimer !== null) resetCaptureCountdown();
+});
+function faceThumbnail(source, landmarks) {
+  const width = source.width;
+  const height = source.height;
+  const nose = landmarks?.[0];
+  const leftEar = landmarks?.[7];
+  const rightEar = landmarks?.[8];
+  const faceWidth =
+    leftEar && rightEar ? Math.abs(leftEar.x - rightEar.x) * width : 0;
+  const side = Math.min(width, Math.max(width * 0.68, faceWidth * 2.3));
+  const centerX = (nose?.x ?? 0.5) * width;
+  const centerY = (nose?.y ?? 0.18) * height;
+  const x = Math.max(0, Math.min(width - side, centerX - side / 2));
+  const y = Math.max(0, Math.min(height - side, centerY - side / 2));
+  const thumbnail = document.createElement('canvas');
+  thumbnail.width = thumbnail.height = 320;
+  thumbnail
+    .getContext('2d')
+    .drawImage(source, x, y, side, side, 0, 0, 320, 320);
+  return thumbnail.toDataURL('image/webp', 0.88);
+}
+async function capture() {
+  const video = document.querySelector('#video');
+  if (!video?.videoWidth) {
+    cameraError('Espera a que la cámara esté lista.');
+    return;
+  }
+  const frame = visibleCaptureFrame(
+    video.videoWidth,
+    video.videoHeight,
+    video.clientWidth,
+    video.clientHeight,
+    video.parentElement.clientHeight,
+  );
+  const canvas = document.createElement('canvas');
+  canvas.width = 900;
+  canvas.height = Math.round((900 * frame.height) / frame.width);
+  const ctx = canvas.getContext('2d');
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(
+    video,
+    frame.x,
+    frame.y,
+    frame.width,
+    frame.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
+  const photo = canvas.toDataURL('image/webp', 0.9);
+  state.photo = photo;
+  state.thumbnail = faceThumbnail(canvas);
+  state.photoReady = false;
+  state.analyzing = true;
+  state.trackingError = '';
+  stopCamera();
+  render();
+  try {
+    const { image, landmarks } = await analyzePhoto(photo);
+    if (state.photo === photo) {
+      state.thumbnail = faceThumbnail(image, landmarks);
+      state.photoReady = true;
+    }
+  } catch (error) {
+    if (state.photo === photo)
+      state.trackingError =
+        error.message || 'No pudimos analizar la foto. Repítela con buena luz.';
+  } finally {
+    if (state.photo === photo) {
+      state.analyzing = false;
+      render();
+    }
+  }
+}
+function clearPhoto() {
+  state.photo = '';
+  state.thumbnail = '';
+  state.photoReady = false;
+  state.analyzing = false;
+  state.trackingError = '';
+  clearPhotoAnalysis();
+}
+function retakePhoto() {
+  stopCamera();
+  clearPhoto();
+  navigate('camera');
+}
+function navigate(page) {
+  if (state.timer) clearInterval(state.timer);
+  state.timer = null;
+  if (page !== 'camera') stopCamera();
+  state.page = page;
+  render();
+  app.querySelector('.screen')?.classList.add('is-entering');
+  if (page === 'countdown') {
+    let n = 3;
+    state.timer = setInterval(() => {
+      n--;
+      const el = document.querySelector('#count span');
+      if (el) {
+        el.textContent = String(n);
+        el.classList.remove('count-pop');
+        void el.offsetWidth;
+        el.classList.add('count-pop');
+      }
+      if (n === 0) navigate('age');
+    }, 850);
+  }
+}
+async function next() {
+  if (state.page === 'intro' && (!state.consent || !state.assetsReady)) return;
+  if (state.page === 'camera' && !state.photoReady) return;
+  if (state.page === 'frequency' && state.frequency === 'never') {
+    state.feelings.clear();
+    state.zones.clear();
+    state.resultIndex = 0;
+    navigate('result');
+    return;
+  }
+  if (state.page === 'result') {
+    navigate('map');
+    return;
+  }
+  if (state.page === 'zones') {
+    const result = resultForAnswers(state.frequency, [...state.feelings][0]);
+    if (result === null || !state.zones.size) return;
+    const photo = state.photo;
+    const zone = [...state.zones][0];
+    const session = cameraSession;
+    const isCurrent = () =>
+      state.page === 'zones' &&
+      state.photo === photo &&
+      cameraSession === session &&
+      state.zones.has(zone);
+    try {
+      await validateTrackedZone(photo, zone);
+    } catch (error) {
+      if (!isCurrent()) return;
+      clearPhoto();
+      state.trackingError =
+        error.message || 'Repite la foto para mostrar la zona elegida.';
+      navigate('camera');
+      return;
+    }
+    if (!isCurrent()) return;
+    state.resultIndex = result;
+  }
+  const routes = {
+    intro: 'instructions',
+    instructions: 'camera',
+    camera: 'countdown',
+    age: 'frequency',
+    frequency: 'feelings',
+    feelings: 'zones',
+    zones: 'result',
+  };
+  if (routes[state.page]) navigate(routes[state.page]);
+}
+app.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-action]');
+  if (!button || button.disabled) return;
+  const { action, group, value } = button.dataset;
+  if (action === 'retry-assets') {
+    state.assetsError = false;
+    render();
+    preloadAssets();
+  }
+  if (action === 'home') {
+    state.consent = false;
+    clearPhoto();
+    state.age = '';
+    state.frequency = '';
+    state.resultIndex = 0;
+    state.feelings.clear();
+    state.zones.clear();
+    navigate('intro');
+  }
+  if (action === 'next' && state.page === 'map') {
+    showDownload();
+    app.querySelector('.screen')?.classList.add('is-entering');
+    return;
+  }
+  if (action === 'download') downloadPhoto();
+  if (action === 'next') next();
+  if (action === 'capture') {
+    if (state.photo) retakePhoto();
+    else startCaptureCountdown();
+  }
+  if (action === 'retake') retakePhoto();
+  if (action === 'select') {
+    if (group === 'age' || group === 'frequency') state[group] = value;
+    else if (group === 'zones' || group === 'feelings')
+      state[group] = new Set([value]);
+    for (const option of app.querySelectorAll(
+      `[data-action="select"][data-group="${group}"]`,
+    )) {
+      const selected = option.dataset.value === value;
+      option.classList.toggle('selected', selected);
+      option.setAttribute(
+        option.getAttribute('role') === 'radio'
+          ? 'aria-checked'
+          : 'aria-pressed',
+        String(selected),
+      );
+    }
+    const continueButton = app.querySelector('.screen > .cta');
+    if (continueButton) continueButton.disabled = false;
+  }
+});
+app.addEventListener('change', (event) => {
+  if (event.target.id === 'consent') {
+    state.consent = event.target.checked;
+    render();
+  }
+});
+const viewport = document.querySelector('.viewport');
+const fitStage = () => {
+  const { width, height } = viewport.getBoundingClientRect();
+  document.documentElement.style.setProperty(
+    '--stage-scale',
+    String(Math.min(width / 1080, height / 1920)),
+  );
+};
+fitStage();
+new ResizeObserver(fitStage).observe(viewport);
+render();
+preloadAssets();

@@ -74,8 +74,9 @@ export function drawTrackingOverlay(canvas, landmarks, frame) {
   const detected = [];
   const imageHeight = width * 16 / 9;
   const scale = Math.max(width / frame.videoWidth, imageHeight / frame.videoHeight);
+  const bodySpots = trackedSpots(landmarks, { width: frame.cropWidth, height: frame.cropHeight }, 'cuerpo');
   for (const zone of zones) {
-    const spots = trackedSpots(landmarks, { width: frame.cropWidth, height: frame.cropHeight }, zone)
+    const spots = bodySpots.filter(spot => spot[6] === zone)
       .map(spot => ({
         ...projectSpot(spot, frame, { width, height, imageHeight }),
         radiusX: spot[2] * frame.cropWidth * scale,
