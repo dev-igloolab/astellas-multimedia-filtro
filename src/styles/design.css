@@ -978,8 +978,8 @@
 }
 .consent-copy {
   text-align: justify;
+  text-justify: inter-word;
   text-align-last: left;
-  text-wrap: pretty;
 }
 .privacy-url {
   word-break: break-all;
