@@ -14,7 +14,8 @@ import Header from '../../ui/Header.astro';
       <span class="download-qr-frame">
         <canvas
           id="photo-qr"
-          aria-label="QR de la dirección local de la experiencia"
+          aria-label="QR para abrir tu fotografía"
+          hidden
         ></canvas>
         <i class="corner top-left" aria-hidden="true"></i>
         <i class="corner top-right" aria-hidden="true"></i>
@@ -28,6 +29,9 @@ import Header from '../../ui/Header.astro';
       </span>
     </button>
     <p class="download-status" role="status"></p>
+    <button class="retry-upload" data-action="retry-upload" hidden>
+      REINTENTAR SUBIDA
+    </button>
     <p class="download-legal">
       Campaña educativa de orientación general. No sustituye la consulta médica
       ni sirve para tratar condiciones de salud. Ante síntomas o dudas, consulte

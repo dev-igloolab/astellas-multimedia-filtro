@@ -1,6 +1,7 @@
 ---
 import ExperienceLayout from '../../layouts/ExperienceLayout.astro';
 import Result from '../../components/experience/screens/Result.astro';
+export const prerender = true;
 export function getStaticPaths() {
   return ['sin-sintomas', 'leves', 'moderados', 'severos'].map(
     (nivel, index) => ({ params: { nivel }, props: { index } }),

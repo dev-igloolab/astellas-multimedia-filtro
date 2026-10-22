@@ -1,10 +1,10 @@
 # Multimedia Astellas
 
-Proyecto Astro estático para una experiencia interactiva vertical 9:16.
+Experiencia Astro 9:16 con descarga de fotografías mediante QR. Requiere un servidor Node.js y un Space privado de DigitalOcean; ya no funciona como archivo HTML portable.
 
 ## Desarrollo
 
-Usa Node.js 22.22 o superior y npm. JavaScript se utiliza para la lógica del navegador; Bun no es un requisito. TypeScript permite comprobar los componentes Astro.
+Usa Node.js 22.22 o superior. Copia `.env.example` a `.env` y configura las credenciales de un Space de prueba.
 
 ```sh
 npm ci
@@ -12,55 +12,34 @@ npm run dev -- --background
 npm run check
 npm test
 npm run build
-npm run build:portable
-npm run preview
 ```
 
-`npm run format` aplica el formato compartido. `npm run format:check` lo verifica.
+## Despliegue en DigitalOcean
 
-## Páginas y navegación
+En App Platform, despliega el repositorio como servicio web Node.js con comando de compilación `npm ci && npm run build` y comando de ejecución `node ./dist/server/entry.mjs`. Define estas variables como secretos del servicio:
 
-Cada visual se construye en una página de Astro con su propio HTML y URL:
+| Variable        | Valor                                                           |
+| --------------- | --------------------------------------------------------------- |
+| `SPACES_REGION` | Región del Space, por ejemplo `nyc3`                            |
+| `SPACES_BUCKET` | Nombre del Space                                                |
+| `SPACES_KEY`    | Access key con permiso de lectura, escritura, listado y borrado |
+| `SPACES_SECRET` | Secret key correspondiente                                      |
 
-- `/`: consentimiento e inicio.
-- `/instrucciones/`, `/camara/`, `/evaluando/`: preparación y fotografía.
-- `/edad/`, `/frecuencia/`, `/sensaciones/`, `/zonas/`: cuestionario.
-- `/resultado/sin-sintomas/`, `/resultado/leves/`, `/resultado/moderados/`, `/resultado/severos/`: resultados prerenderizados con `getStaticPaths`.
-- `/mapa/`, `/descarga/`: fotografía y descarga local.
-- `/admin/`: registro de partidas.
+El Space debe permanecer **privado**. El sitio sirve las imágenes mediante `/api/fotos/[id]`; no expone las claves ni URLs públicas de Spaces. La URL del QR se construye con el dominio donde se abre la experiencia, así que ese dominio debe tener HTTPS y ser accesible desde el teléfono que escanea.
 
-El `ClientRouter` oficial de Astro controla la navegación, historial y transiciones. No hay un router propio que reemplace pantallas desde plantillas ocultas. Los botones del cuestionario validan respuestas antes de solicitar la navegación a Astro.
+Al llegar a `/descarga/`, el navegador compone la foto final en 1080 × 1920, la codifica como WebP de alta calidad (0,94) y la sube automáticamente. El QR se muestra solo después de que Spaces confirma la subida. Si falla, aparece un botón para reintentar; la descarga directa del navegador sigue disponible. El QR abre `/foto/[id]/`, donde se puede ver y descargar la imagen.
 
-La foto y las respuestas permanecen solo en memoria durante la navegación de Astro. Recargar el navegador o entrar directamente a un paso sin los datos necesarios vuelve al inicio. La cámara se detiene al abandonar su página. Los recursos se preparan al inicio y se reutilizan durante el recorrido.
+Cada imagen queda en `photos/` con un identificador aleatorio. Las rutas dejan de servirla a las 48 horas. El servidor borra los objetos vencidos al iniciar, cada hora mientras está activo y cuando alguien intenta abrir una foto vencida. La regla de ciclo de vida del Space elimina los objetos del prefijo `photos/` después de 2 días, incluso si el servicio está apagado. La regla ya se configuró en `igloosuite`; para otro Space, ejecuta `node --env-file=.env scripts/configure-spaces-lifecycle.mjs`. El script conserva las demás reglas del Space.
 
-## Estructura
+Para verificar un Space y el recorrido HTTP sin dejar una imagen de prueba, ejecuta `node --env-file=.env scripts/verify-spaces.mjs` y, con el servidor en `http://localhost:4322`, `node --env-file=.env scripts/verify-photo-flow.mjs`.
 
-- `src/pages/`: rutas reales y composición de cada página.
-- `src/layouts/`: documento HTML y escenario compartido 9:16.
-- `src/components/experience/screens/`: marcado Astro de cada visual.
-- `src/components/admin/`, `src/components/ui/`: panel y elementos compartidos.
-- `src/scripts/experience.js`: validaciones, respuestas e inicialización al navegar con Astro.
-- `src/scripts/camera.js`: cámara, cuenta regresiva y captura.
-- `src/scripts/photo.js`: renderizado de descarga y exportación de la fotografía.
-- `src/scripts/admin*.js`: interacción del panel de registros.
-- `src/lib/experience-state.js`: estado efímero de la sesión.
-- `src/lib/experience-flow.js`: requisitos de cada paso y elección del resultado.
-- `src/lib/vision/`: seguimiento corporal y filtro térmico.
-- `src/lib/ui/`: sonidos y animaciones de elementos.
-- `src/lib/`: registros, recursos y reglas.
-- `src/data/`, `src/styles/`, `public/`: contenido, estilos y recursos.
-- `test/`: pruebas de lógica, navegación, geometría y almacenamiento.
+## Recorrido
 
-## Compilación
+La experiencia tiene páginas para consentimiento, captura, cuestionario, resultados, mapa de calor y descarga. El `ClientRouter` de Astro conserva la navegación del recorrido. La foto original y las respuestas permanecen en memoria durante esa navegación; recargar una página interna vuelve al inicio. Solo se sube a Spaces la imagen final con el mapa de calor. El registro de `/admin/` sigue guardando respuestas y resultados únicamente en el navegador local, sin fotografías.
 
-`npm run build` genera todas las páginas estáticas en `dist/`, listas para hosting. `npm run build:portable` (o `bun run build:portable`) ejecuta la compilación de Astro y reúne sus 15 páginas, estilos, imágenes, fuentes y modelos en `portable/index.html`. Ese archivo se abre directamente y funciona sin conexión.
+## Archivos principales
 
-La web utiliza las rutas normales de Astro, incluido `/admin/`. En el portable la dirección permanece en `index.html`, sin fragmentos `#`: la ruta se conserva en el estado del historial. Atrás y adelante siguen funcionando. Para abrir el administrador del portable usa **Ctrl + Alt + A**. Los enlaces antiguos con fragmento se aceptan y se limpian automáticamente. `scripts/portable-router.js` es un adaptador exclusivo del exportador; no se importa en la web. Conserva el historial, las transiciones y el estado durante el recorrido.
-
-Para generar el portable se necesita el proyecto y sus dependencias. Para usarlo basta el HTML generado, un navegador compatible y permiso de cámara. Los enlaces externos y el destino del QR siguen necesitando conexión; el QR no entrega fotografías a otros teléfonos.
-
-## Registro local
-
-Cada partida completada guarda fecha, respuestas y resultado en el navegador. No guarda fotografías en el registro ni envía datos a un servidor. Volver al resultado actualiza la misma partida, sin duplicarla. El panel muestra totales y permite exportar un CSV; no tiene contraseña.
-
-Los registros no se transfieren entre dispositivos ni navegadores. Exporta una copia antes de borrar el almacenamiento del navegador.
+- `src/scripts/photo.js`: composición, optimización, subida, QR y descarga local.
+- `src/lib/photo-store.mjs`: acceso privado a Spaces y caducidad.
+- `src/pages/api/fotos/`: rutas de subida y lectura de imágenes.
+- `src/pages/foto/[id].astro`: página móvil a la que apunta el QR.

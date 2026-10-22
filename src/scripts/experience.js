@@ -14,7 +14,7 @@ import {
 import { createRecordStore } from '../lib/records.js';
 import { resultVariants } from '../data/result-content.js';
 import { mountCamera, takePhoto, retakePhoto, clearPhoto } from './camera.js';
-import { showDownload, downloadPhoto } from './photo.js';
+import { showDownload, downloadPhoto, retryPhotoUpload } from './photo.js';
 
 let dispose = () => {};
 let preparation;
@@ -243,6 +243,7 @@ async function mountExperience() {
       }
       if (action === 'next') advance().catch(console.error);
       if (action === 'download') downloadPhoto();
+      if (action === 'retry-upload') retryPhotoUpload();
       if (action === 'capture') takePhoto();
       if (action === 'retake') retakePhoto();
       if (action === 'select') {

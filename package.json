@@ -13,16 +13,18 @@
     "astro": "astro",
     "check": "astro check",
     "format": "prettier --write src scripts test *.json *.mjs README.md",
-    "format:check": "prettier --check src scripts test *.json *.mjs README.md",
-    "build:portable": "astro build && node scripts/build-portable.mjs"
+    "format:check": "prettier --check src scripts test *.json *.mjs README.md"
   },
   "dependencies": {
+    "@astrojs/node": "^11.1.9",
+    "@aws-sdk/client-s3": "^3.1156.0",
     "@mediapipe/tasks-vision": "^1.1.0",
     "astro": "^7.4.0",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.11",
+    "aws-sdk-client-mock": "^4.1.0",
     "esbuild": "^0.28.2",
     "prettier": "^3.9.10",
     "prettier-plugin-astro": "^1.1.1",

@@ -776,6 +776,10 @@
   width: 12cqw !important;
   height: 12cqw !important;
 }
+.download-qr-frame canvas[hidden],
+.retry-upload[hidden] {
+  display: none !important;
+}
 .download-qr-frame .corner {
   position: absolute;
   width: 2.5cqw;
@@ -835,6 +839,18 @@
 }
 .download-status:empty {
   display: none;
+}
+.retry-upload {
+  display: block;
+  margin: 2cqw auto 0;
+  padding: 1.5cqw 3cqw;
+  border: 0;
+  border-radius: 1cqw;
+  background: var(--amber);
+  color: var(--brown);
+  font:
+    400 3cqw Anton,
+    sans-serif;
 }
 .map {
   padding: 6cqw 6% 0;

@@ -10,16 +10,11 @@ export function showDownload() {
       .querySelector('#app')
       .querySelector('#download-preview')
       .setAttribute('aria-label', 'Tu fotografía');
-  const qrReady = QRCode.toCanvas(
-    document.querySelector('#photo-qr'),
-    window.location.href,
-    {
-      width: 256,
-      margin: 0,
-      color: { dark: '#431d15', light: '#ffb755' },
-      errorCorrectionLevel: 'M',
-    },
-  ).catch(console.error);
+  const qr = document.querySelector('#photo-qr');
+  qr.hidden = true;
+  document.querySelector('.download-label').innerHTML =
+    'PREPARANDO TU<br />FOTO';
+  setStatus('Preparando y subiendo tu foto...');
   const photoReady =
     state.photo &&
     renderThermal(
@@ -28,14 +23,39 @@ export function showDownload() {
       document.querySelector('#download-preview'),
       undefined,
       state.resultIndex,
-    ).catch(console.error);
-  return Promise.all([qrReady, photoReady]);
+    );
+  photoReady
+    .then(() => uploadPhoto())
+    .catch((error) => {
+      console.error(error);
+      const label = document.querySelector('.download-label');
+      if (label) label.innerHTML = 'DESCARGA TU<br />FOTO';
+      setStatus(
+        'No se pudo subir la foto. Puedes descargarla aquí o reintentar.',
+      );
+      document
+        .querySelector('[data-action="retry-upload"]')
+        ?.removeAttribute('hidden');
+    });
+  return photoReady.catch(() => {});
 }
-let downloadBusy = false;
-export async function downloadPhoto() {
-  if (downloadBusy || !state.photo) return;
-  downloadBusy = true;
-  try {
+let preparedPhoto;
+let preparedKey;
+let uploadedUrl;
+let uploadBusy;
+let uploadBusyKey;
+
+function setStatus(message) {
+  const status = document.querySelector('.download-status');
+  if (status) status.textContent = message;
+}
+
+function preparePhoto() {
+  const key = `${state.sessionId}|${state.photo}|${[...state.zones].join(',')}|${state.resultIndex}`;
+  if (preparedPhoto && preparedKey === key) return preparedPhoto;
+  preparedKey = key;
+  uploadedUrl = null;
+  preparedPhoto = (async () => {
     await document.fonts.ready;
     const filteredPhoto = document.createElement('canvas');
     await renderThermal(
@@ -79,20 +99,89 @@ export async function downloadPhoto() {
     ctx.font = '400 46px Anton';
     ctx.fillText('#TomaElControlDeTuMenopausia', 540, 1840);
     const blob = await new Promise((resolve) =>
-      canvas.toBlob(resolve, 'image/png'),
+      canvas.toBlob(resolve, 'image/webp', 0.94),
     );
-    if (!blob) throw new Error('No se pudo generar la imagen');
+    if (!blob || blob.type !== 'image/webp')
+      throw new Error('No se pudo optimizar la imagen');
+    return blob;
+  })().catch((error) => {
+    preparedPhoto = null;
+    throw error;
+  });
+  return preparedPhoto;
+}
+
+async function uploadPhoto() {
+  const photoPromise = preparePhoto();
+  const key = preparedKey;
+  const blob = await photoPromise;
+  if (key !== preparedKey) return;
+  if (uploadedUrl) return showQr(uploadedUrl);
+  if (uploadBusy && uploadBusyKey === key) return uploadBusy;
+  uploadBusyKey = key;
+  uploadBusy = (async () => {
+    const response = await fetch('/api/fotos/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'image/webp' },
+      body: blob,
+    });
+    if (!response.ok)
+      throw new Error(`Error al subir la foto: ${response.status}`);
+    const { url } = await response.json();
+    if (key !== preparedKey) return;
+    uploadedUrl = new URL(url, window.location.origin).href;
+    await showQr(uploadedUrl);
+  })().finally(() => {
+    if (uploadBusyKey === key) uploadBusy = null;
+  });
+  return uploadBusy;
+}
+
+async function showQr(url) {
+  const qr = document.querySelector('#photo-qr');
+  if (!qr) return;
+  await QRCode.toCanvas(qr, url, {
+    width: 256,
+    margin: 0,
+    color: { dark: '#431d15', light: '#ffb755' },
+    errorCorrectionLevel: 'M',
+  });
+  qr.hidden = false;
+  qr.setAttribute(
+    'aria-label',
+    'QR para abrir y descargar tu fotografía desde otro dispositivo',
+  );
+  document.querySelector('.download-label').innerHTML =
+    'ESCANEA ESTE QR Y<br />DESCARGA TU FOTO';
+  document
+    .querySelector('[data-action="retry-upload"]')
+    ?.setAttribute('hidden', '');
+  setStatus('Tu foto está lista. El QR estará disponible durante 2 días.');
+}
+
+export async function retryPhotoUpload() {
+  setStatus('Subiendo tu foto...');
+  return uploadPhoto().catch((error) => {
+    console.error(error);
+    setStatus('No se pudo subir la foto. Intenta de nuevo.');
+  });
+}
+
+let downloadBusy = false;
+export async function downloadPhoto() {
+  if (downloadBusy || !state.photo) return;
+  downloadBusy = true;
+  try {
+    const blob = await preparePhoto();
     const url = URL.createObjectURL(blob),
       link = document.createElement('a');
     link.href = url;
-    link.download = 'Astellas-TomaElControl.png';
+    link.download = 'Astellas-TomaElControl.webp';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch (error) {
     console.error(error);
-    const status = document.querySelector('.download-status');
-    if (status)
-      status.textContent = 'No se pudo descargar la foto. Intenta de nuevo.';
+    setStatus('No se pudo descargar la foto. Intenta de nuevo.');
   } finally {
     downloadBusy = false;
   }
