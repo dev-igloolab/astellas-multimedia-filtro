@@ -1,0 +1,97 @@
+---
+import { staticAssets } from '../../../data/asset-manifest.js';
+import Header from '../../ui/Header.astro';
+import Icon from '../../ui/Icon.astro';
+import Cta from '../../ui/Cta.astro';
+import {
+  resultVariants,
+  attentionItems,
+  resultLegal,
+} from '../../../data/result-content.js';
+interface Props {
+  index: number;
+}
+const { index } = Astro.props;
+const variant = resultVariants[index];
+---
+
+<section
+  class:list={[
+    'screen',
+    'peach',
+    'result-screen',
+    variant.kind,
+    { 'symptom-result': variant.kind !== 'none' },
+  ]}
+>
+  <Header light />
+  <div class="result">
+    <h1 set:html={variant.title} />
+    <p class="result-intro" set:html={variant.intro} />
+    <div class="result-card">
+      {variant.kind === 'none' ? (
+        <>
+          <h2>{variant.heading}</h2>
+          <ul class="result-list">
+            {attentionItems.map(([image, label]) => (
+              <li>
+                <Icon name={image} />
+                <span set:html={label} />
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <>
+          <h2>Síntomas como:</h2>
+          <div class="result-feature">
+            <Icon name="calor-repentino" />
+            <div class="result-feature-copy">
+              <p>
+                Los síntomas vasomotores
+                <br />
+                más conocidos como sofocos
+                <br />u oleadas de calor pueden
+                <br />
+                afectar <strong>hasta el 80%</strong>,<br />
+                durante la menopausia. <sup>1,2</sup>
+              </p>
+              <p>
+                Pero no te preocupes, esto
+                <br />
+                no significa que tengas que
+                <br />
+                resignarte a vivir con ellos.
+              </p>
+            </div>
+          </div>
+          <p class="result-message">
+            Reconocer lo que estás sintiendo es el
+            <br />
+            primer paso para tomar el control.
+          </p>
+        </>
+      )}
+      <div class="result-footer">
+        <div class="result-resource">
+          <a
+            class="result-qr"
+            href="https://link.igloolab.co/2a0fff"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Abrir recursos sobre menopausia"
+          >
+            <img
+              data-asset-image="qr"
+              src={staticAssets['qr']}
+              alt="Código QR para consultar recursos sobre menopausia"
+            />
+          </a>
+          <p set:html={variant.resource} />
+        </div>
+        <Cta />
+        <p class="result-legal" set:html={resultLegal} />
+      </div>
+    </div>
+  </div>
+</section>

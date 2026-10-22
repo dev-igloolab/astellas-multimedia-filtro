@@ -1,0 +1,20 @@
+---
+import { staticAssets } from '../../data/asset-manifest.js';
+import Icon from './Icon.astro';
+interface Props {
+  light?: boolean;
+}
+const { light = false } = Astro.props;
+---
+
+<header class:list={['header', { light }]}>
+  <img
+    class="logo"
+    data-asset-image={light ? 'logoColor' : 'logo'}
+    src={staticAssets[light ? 'logoColor' : 'logo']}
+    alt="Astellas"
+  />
+  <button class="home" data-action="home" aria-label="Ir al inicio">
+    <Icon name="inicio" />
+  </button>
+</header>

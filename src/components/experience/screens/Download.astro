@@ -1,0 +1,37 @@
+---
+import Header from '../../ui/Header.astro';
+---
+
+<section class="screen download-screen">
+  <canvas
+    id="download-preview"
+    role="img"
+    aria-label="Tu foto con mapa de calor"
+  ></canvas>
+  <Header />
+  <div class="download-bottom">
+    <button class="download-banner" data-action="download">
+      <span class="download-qr-frame">
+        <canvas
+          id="photo-qr"
+          aria-label="QR de la dirección local de la experiencia"
+        ></canvas>
+        <i class="corner top-left" aria-hidden="true"></i>
+        <i class="corner top-right" aria-hidden="true"></i>
+        <i class="corner bottom-left" aria-hidden="true"></i>
+        <i class="corner bottom-right" aria-hidden="true"></i>
+      </span>
+      <span class="download-divider" aria-hidden="true"></span>
+      <span class="download-label">
+        ESCANEA ESTE QR Y<br />
+        DESCARGA TU FOTO
+      </span>
+    </button>
+    <p class="download-status" role="status"></p>
+    <p class="download-legal">
+      Campaña educativa de orientación general. No sustituye la consulta médica
+      ni sirve para tratar condiciones de salud. Ante síntomas o dudas, consulte
+      a su médico.
+    </p>
+  </div>
+</section>

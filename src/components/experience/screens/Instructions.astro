@@ -1,0 +1,41 @@
+---
+import Header from '../../ui/Header.astro';
+import Icon from '../../ui/Icon.astro';
+import Cta from '../../ui/Cta.astro';
+---
+
+<section class="screen red">
+  <Header />
+  <div class="center instructions">
+    <Icon name="listo" extra="check" />
+    <h1>¿Estás lista?</h1>
+    <p>Sigue estos pasos:</p>
+    <ol>
+      <li>
+        <b>1.</b>
+        <span>
+          Ubícate frente a la cámara,
+          <br />
+          dejando tus hombros dentro del encuadre.
+        </span>
+      </li>
+      <li>
+        <b>2.</b>
+        <span>
+          Procura que tu rostro se
+          <br />
+          vea con claridad.
+        </span>
+      </li>
+      <li>
+        <b>3.</b>
+        <span>
+          ¡Y listo!, prepárate para
+          <br />
+          comenzar esta experiencia.
+        </span>
+      </li>
+    </ol>
+  </div>
+  <Cta />
+</section>

@@ -1,0 +1,31 @@
+---
+import SiteLayout from './SiteLayout.astro';
+import BootLoader from '../components/BootLoader.astro';
+import '../styles/motion.css';
+import { fade } from 'astro:transitions';
+interface Props {
+  page: string;
+  resultIndex?: number;
+}
+const { page, resultIndex } = Astro.props;
+---
+
+<SiteLayout>
+  {page === 'intro' && <BootLoader />}
+  <main
+    class="viewport"
+    inert={page === 'intro'}
+    aria-hidden={page === 'intro' ? 'true' : undefined}
+    transition:animate={fade({ duration: '300ms' })}
+  >
+    <div
+      class:list={['stage', 'page-' + page]}
+      id="app"
+      data-page={page}
+      data-result-index={resultIndex}
+    >
+      <slot />
+    </div>
+  </main>
+  <script src="../scripts/experience.js"></script>
+</SiteLayout>

@@ -1,0 +1,66 @@
+---
+import { staticAssets } from '../../../data/asset-manifest.js';
+import Cta from '../../ui/Cta.astro';
+
+const privacyPortal =
+  'https://privacyportal-eu.onetrust.com/ui/#/preferences/multipage/login/85ea6596-6f7b-4ed9-aa41-ea3c128e6036?language=es-co';
+const privacyPolicy =
+  'https://www.astellas.com/en/about/privacy-center/privacy-policy.es-co-general-privacy-notice';
+---
+
+<section class="screen intro">
+  <img
+    class="logo"
+    data-asset-image="logo"
+    src={staticAssets['logo']}
+    alt="Astellas"
+  />
+  <div class="intro-center">
+    <h1>¿Tu menopausia te controla?</h1>
+    <div class="line"></div>
+    <p>
+      Te invitamos a realizar este test para descubrir qué tanto conoces y
+      escuchas a tu cuerpo durante esta etapa.
+    </p>
+    <Cta label="INICIAR" disabled />
+  </div>
+  <div class="intro-footer">
+    <div class="consent">
+      <input id="consent" type="checkbox" aria-labelledby="consent-copy" />
+      <div class="consent-copy" id="consent-copy">
+        Autorizo a Astellas Farma Colombia S.A.S., NIT [900953141-4] a capturar
+        y usar mi fotografía y a tratar mis respuestas para generar mi mapa de
+        calor personalizado, permitirme descargarlo y elaborar estadísticas
+        anónimas. Entiendo que mis respuestas sobre síntomas son datos sensibles
+        de salud y que no estoy obligada a darlas. Mi imagen no se usará para
+        otros fines y se eliminará en 2 días. Puedo conocer, actualizar,
+        rectificar o suprimir mis datos y revocar esta autorización escribiendo
+        a:
+        <br />
+        <span class="privacy-qr">
+          <img
+            src="/assets/qr/politica-privacidad.svg"
+            alt="Código QR de la Política de Tratamiento de Datos de Astellas"
+            width="120"
+            height="120"
+          />
+        </span>
+        <span class="privacy-url">{privacyPortal}</span>. Más información en la
+        Política de Tratamiento de Datos:
+        <br />
+        <span class="privacy-url">{privacyPolicy}</span> (Privacy Policy |
+        Astellas)
+      </div>
+    </div>
+    <div class="legal">
+      <strong>MAT-CO-VEO-2026-00024</strong>
+      <p>
+        Campaña educativa de orientación general. No sustituye la consulta
+        médica ni sirve para tratar condiciones de salud. Ante síntomas o dudas,
+        consulte a su médico. Para notificar un evento adverso o cualquier
+        situación relacionada con la seguridad de un producto de Astellas,
+        contáctenos en: safetyco@astellas.com
+      </p>
+    </div>
+  </div>
+</section>

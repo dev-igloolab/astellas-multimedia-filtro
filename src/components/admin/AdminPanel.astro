@@ -1,0 +1,58 @@
+---
+interface Props {
+  returnHref?: string;
+}
+const { returnHref = '#' } = Astro.props;
+---
+
+<section class="admin-screen">
+  <header class="admin-header">
+    <div>
+      <span class="admin-eyebrow">ASTELLAS · MULTIMEDIA</span>
+      <h1>Registro de partidas</h1>
+      <p>
+        Respuestas anónimas guardadas en este navegador. Las fotografías no se
+        incluyen.
+      </p>
+    </div>
+    <a class="admin-return" href={returnHref}>
+      Volver a la experiencia
+    </a>
+  </header>
+  <div class="admin-toolbar">
+    <div class="admin-total">
+      <strong data-admin-count>0</strong>
+      <span data-admin-count-label>partidas completadas</span>
+    </div>
+    <button class="admin-export" type="button" disabled>
+      Descargar CSV
+    </button>
+  </div>
+  <p class="admin-error" role="alert" hidden></p>
+  <div class="admin-stats" aria-label="Resultados por nivel"></div>
+  <details class="admin-breakdown">
+    <summary>Ver totales por respuesta</summary>
+    <div class="admin-breakdown-grid"></div>
+  </details>
+  <div class="admin-table-wrap">
+    <table>
+      <caption>Detalle de las partidas</caption>
+      <thead>
+        <tr>
+          <th scope="col">#</th>
+          <th scope="col">Fecha y hora</th>
+          <th scope="col">Edad</th>
+          <th scope="col">Frecuencia</th>
+          <th scope="col">Sensación</th>
+          <th scope="col">Zona</th>
+          <th scope="col">Resultado</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <p class="admin-footnote">
+    Los datos permanecen en este navegador. Descarga el CSV para conservar una
+    copia antes de borrar sus datos o cambiar de dispositivo.
+  </p>
+</section>

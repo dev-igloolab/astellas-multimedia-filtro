@@ -1,0 +1,14 @@
+---
+import ExperienceLayout from '../../layouts/ExperienceLayout.astro';
+import Result from '../../components/experience/screens/Result.astro';
+export function getStaticPaths() {
+  return ['sin-sintomas', 'leves', 'moderados', 'severos'].map(
+    (nivel, index) => ({ params: { nivel }, props: { index } }),
+  );
+}
+const { index } = Astro.props;
+---
+
+<ExperienceLayout page="result" resultIndex={index}>
+  <Result index={index} />
+</ExperienceLayout>

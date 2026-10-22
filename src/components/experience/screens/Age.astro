@@ -1,0 +1,38 @@
+---
+import Header from '../../ui/Header.astro';
+import Icon from '../../ui/Icon.astro';
+import Cta from '../../ui/Cta.astro';
+const options = [
+  ['30-40', 'Entre los 30 a 40 años'],
+  ['40-55', 'Entre los 40 a 55 años'],
+  ['55-60', 'Entre los 55 a 60 años'],
+  ['60+', '+ de 60 años'],
+];
+---
+
+<section class="screen peach">
+  <Header light />
+  <div class="center">
+    <Icon name="grupo-mujeres" extra="large-icon" />
+    <h1>
+      ¿En qué rango de edad
+      <br />
+      te encuentras?
+    </h1>
+    <div class="choices">
+      {options.map(([value, label], i) => (
+        <button
+          class="choice"
+          data-action="select"
+          data-group="age"
+          data-value={value}
+          aria-pressed="false"
+        >
+          <b>{String.fromCharCode(65 + i)}.</b>
+          <span>{label}</span>
+        </button>
+      ))}
+    </div>
+  </div>
+  <Cta />
+</section>

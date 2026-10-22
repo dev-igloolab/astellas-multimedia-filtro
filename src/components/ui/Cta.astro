@@ -1,0 +1,12 @@
+---
+interface Props {
+  label?: string;
+  action?: string;
+  disabled?: boolean;
+}
+const { label = 'SIGUIENTE', action = 'next', disabled = false } = Astro.props;
+---
+
+<button class="cta" data-action={action} disabled={disabled}>
+  {label}
+</button>

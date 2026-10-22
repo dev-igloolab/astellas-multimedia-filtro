@@ -1,23 +1,8 @@
 ---
-import '../styles/global.css';
-import '../styles/design.css';
-import '../styles/motion.css';
-import BootLoader from '../components/BootLoader.astro';
+import ExperienceLayout from '../layouts/ExperienceLayout.astro';
+import Intro from '../components/experience/screens/Intro.astro';
 ---
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#ed174b" />
-  <title>Astellas · Toma el control de tu menopausia</title>
-</head>
-<body>
-  <BootLoader />
-  <template id="app-styles-anchor"></template>
-  <main class="viewport t-page-slide" data-page="2" inert aria-hidden="true">
-    <div class="t-page" data-page-id="2"><div class="stage" id="app"></div></div>
-  </main>
-  <script src="../experience.js"></script>
-</body>
-</html>
+
+<ExperienceLayout page="intro">
+  <Intro />
+</ExperienceLayout>

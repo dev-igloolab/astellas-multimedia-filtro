@@ -1,0 +1,42 @@
+---
+import Header from '../../ui/Header.astro';
+import Icon from '../../ui/Icon.astro';
+import Cta from '../../ui/Cta.astro';
+const options = [
+  ['cara', 'Cara y cuello', 'cara-cuello'],
+  ['pecho', 'Pecho y espalda', 'pecho-espalda'],
+  ['cuerpo', 'Todo el cuerpo', 'todo-cuerpo'],
+  ['extremidades', 'Brazos y antebrazos', 'brazos-piernas'],
+];
+---
+
+<section class="screen red">
+  <Header />
+  <div class="center">
+    <h1>
+      ¿En qué parte de tu
+      <br />
+      cuerpo sientes con mayor
+      <br />
+      frecuencia los sofocos?
+    </h1>
+    <div class="zone-grid" role="radiogroup" aria-label="Parte del cuerpo">
+      {options.map(([value, label, image], i) => (
+        <button
+          class="zone"
+          role="radio"
+          data-action="select"
+          data-group="zones"
+          data-value={value}
+          aria-checked="false"
+        >
+          <Icon name={image} />
+          <span>
+            <b>{String.fromCharCode(65 + i)}.</b> {label}
+          </span>
+        </button>
+      ))}
+    </div>
+  </div>
+  <Cta />
+</section>

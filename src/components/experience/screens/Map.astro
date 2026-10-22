@@ -1,0 +1,25 @@
+---
+import Header from '../../ui/Header.astro';
+import Cta from '../../ui/Cta.astro';
+---
+
+<section class="screen red map">
+  <Header />
+  <h1>¡ESTE ES TU MAPA DE CALOR!</h1>
+  <div class="final-photo">
+    <canvas
+      id="thermal-map"
+      role="img"
+      aria-label="Visualización térmica ilustrativa de tu fotografía"
+    ></canvas>
+    <p>
+      Reconocer y tratar tus síntomas es el primer paso para cuidar de ti y de
+      tu salud futura.
+    </p>
+  </div>
+  <div class="map-copy">
+    Consulta a tu médico y<br />
+    <strong>TOMA EL CONTROL DE TU MENOPAUSIA</strong>
+  </div>
+  <Cta />
+</section>

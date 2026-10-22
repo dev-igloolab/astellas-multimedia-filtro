@@ -1,0 +1,14 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import AdminPanel from '../components/admin/AdminPanel.astro';
+import '../styles/admin.css';
+---
+
+<SiteLayout title="Astellas · Registro de partidas">
+  <main class="viewport admin-mode">
+    <div class="stage page-admin" id="admin-app">
+      <AdminPanel returnHref={import.meta.env.BASE_URL} />
+    </div>
+  </main>
+  <script src="../scripts/admin-page.js"></script>
+</SiteLayout>

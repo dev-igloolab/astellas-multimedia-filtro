@@ -598,3 +598,7 @@ h2,
 .map > p:not(.map-copy) {
   font-family: 'Myriad Variable Concept', sans-serif;
 }
+
+[hidden] {
+  display: none !important;
+}

@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { captureFrame, visibleCaptureFrame } from '../src/capture-frame.js';
-import { coverPhoto } from '../src/photo-frame.js';
+import {
+  captureFrame,
+  visibleCaptureFrame,
+} from '../src/lib/vision/capture-frame.js';
+import { coverPhoto } from '../src/lib/vision/photo-frame.js';
 
 test('El encuadre base centra la cámara detrás de la visual 9:16', () => {
   const frame = captureFrame(1280, 720, 9, 16);
@@ -23,7 +26,7 @@ test('La captura toma solo la parte de la cámara que se ve en pantalla', () => 
   assert.equal(visible.x, full.x);
   assert.equal(visible.y, full.y);
   assert.equal(visible.width, full.width);
-  assert.equal(visible.height, full.height * 1325 / 1920);
+  assert.equal(visible.height, (full.height * 1325) / 1920);
 });
 
 test('La foto del recuadro visible llena el resultado 9:16 sin bordes', () => {

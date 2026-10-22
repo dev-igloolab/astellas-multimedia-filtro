@@ -1,0 +1,22 @@
+---
+import Header from '../../ui/Header.astro';
+import Icon from '../../ui/Icon.astro';
+---
+
+<section class="screen countdown">
+  <Header />
+  <div class="center">
+    <Icon name="imagen" extra="large-icon" />
+    <h1>Evaluando la fotografía.</h1>
+    <p>
+      Tu resultado completo
+      <br />
+      aparecerá pronto
+    </p>
+    <Icon name="continuar-abajo" extra="chevrons" />
+    <div class="count" id="count">
+      <span>3</span>
+      <i class="count-dot" aria-hidden="true"></i>
+    </div>
+  </div>
+</section>

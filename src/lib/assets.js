@@ -1,4 +1,4 @@
-import { staticAssets } from './asset-manifest.js';
+import { staticAssets } from '../data/asset-manifest.js';
 
 const imageCache = new Map();
 export const assetUrl = (name) =>

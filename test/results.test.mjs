@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { resultForAnswers } from '../src/results.js';
+import { resultForAnswers } from '../src/lib/results.js';
 
 test('Nunca muestra el resultado sin síntomas', () => {
   assert.equal(resultForAnswers('never', ''), 0);

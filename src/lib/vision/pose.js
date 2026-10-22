@@ -1,7 +1,7 @@
 import { PoseLandmarker } from '@mediapipe/tasks-vision';
 import { visibleCaptureFrame } from './capture-frame.js';
 
-import { visionAssets as files } from './asset-manifest.js';
+import { visionAssets as files } from '../../data/asset-manifest.js';
 
 let detectorPromise;
 let analysisCache;

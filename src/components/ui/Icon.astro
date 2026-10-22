@@ -1,0 +1,15 @@
+---
+import { staticAssets } from '../../data/asset-manifest.js';
+interface Props {
+  name: string;
+  extra?: string;
+}
+const { name, extra = '' } = Astro.props;
+---
+
+<span
+  class:list={['icon', extra]}
+  data-asset-icon={name}
+  style={{ '--image': `url("${staticAssets[name]}")` }}
+  aria-hidden="true"
+></span>

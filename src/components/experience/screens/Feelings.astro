@@ -1,0 +1,43 @@
+---
+import Header from '../../ui/Header.astro';
+import Icon from '../../ui/Icon.astro';
+import Cta from '../../ui/Cta.astro';
+const options = [
+  ['calor', 'Calor repentino'],
+  ['sudor', 'Sudoración'],
+  ['interrumpe', 'Interrumpe mis actividades'],
+  ['todas', 'Todas las anteriores'],
+  ['ambas', 'A y B'],
+];
+---
+
+<section class="screen amber">
+  <Header />
+  <div class="center">
+    <div class="dark-card">
+      <Icon name="sofoco" extra="large-icon" />
+      <h1>
+        ¿Qué sientes
+        <br />
+        cuando aparece el
+        <br />
+        sofoco?
+      </h1>
+      <div class="choices">
+        {options.map(([value, label], i) => (
+          <button
+            class="choice"
+            data-action="select"
+            data-group="feelings"
+            data-value={value}
+            aria-pressed="false"
+          >
+            <b>{String.fromCharCode(65 + i)}.</b>
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+  <Cta />
+</section>

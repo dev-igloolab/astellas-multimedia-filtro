@@ -1,0 +1,41 @@
+---
+import Header from '../../ui/Header.astro';
+import Cta from '../../ui/Cta.astro';
+const options = [
+  ['never', 'Nunca'],
+  ['sometimes', 'Ocasionalmente'],
+  ['often', 'Varias veces al día'],
+];
+---
+
+<section class="screen amber">
+  <Header />
+  <div class="center">
+    <h1>Bienvenida</h1>
+    <p>
+      ¡Es momento de cambiar la conversación sobre la menopausia y pasar de los
+      prejuicios al control!
+    </p>
+    <div class="dark-card">
+      <h2>
+        ¿Con qué frecuencia sientes sofocos
+        <br />o episodios repentinos de calor?
+      </h2>
+      <div class="choices">
+        {options.map(([value, label], i) => (
+          <button
+            class="choice"
+            data-action="select"
+            data-group="frequency"
+            data-value={value}
+            aria-pressed="false"
+          >
+            <b>{String.fromCharCode(65 + i)}.</b>
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+  <Cta />
+</section>

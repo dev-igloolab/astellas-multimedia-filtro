@@ -1,0 +1,74 @@
+---
+import Icon from '../../ui/Icon.astro';
+import Cta from '../../ui/Cta.astro';
+const indicators = [
+  ['cara', 'cara-cuello', 'ROSTRO'],
+  ['pecho', 'pecho-espalda', 'PECHO'],
+  ['brazos', 'brazos-piernas', 'BRAZOS'],
+];
+---
+
+<section class="screen camera">
+  <div class="preview">
+    <div class="camera-feed">
+      <video id="video" autoplay playsinline muted></video>
+    </div>
+    <canvas
+      class="tracking-overlay"
+      id="tracking-overlay"
+      aria-hidden="true"
+    ></canvas>
+    <p class="tracking-status" id="tracking-status" role="status">
+      UBÍCATE FRENTE A LA CÁMARA
+    </p>
+    <div class="detection-rail" role="list" aria-label="Zonas detectadas">
+      {indicators.map(([zone, asset, label]) => (
+        <div
+          class="detection-zone"
+          data-detection-zone={zone}
+          data-detected="false"
+          role="listitem"
+          aria-label={`${label}: sin detectar`}
+        >
+          <Icon name={asset} />
+          <span>{label}</span>
+        </div>
+      ))}
+    </div>
+    <div class="capture-bar">
+      <div class="thumbnail">
+        <video
+          id="thumbnail-video"
+          autoplay
+          playsinline
+          muted
+          aria-hidden="true"
+        ></video>
+      </div>
+      <div class="shutter-shell">
+        <button class="shutter" data-action="capture">
+          <span>TOMAR</span>
+        </button>
+      </div>
+      <button class="retake" data-action="retake" aria-label="Repetir foto">
+        <Icon name="repetir" />
+      </button>
+    </div>
+  </div>
+  <div class="camera-heading">
+    <h1>¡Cada mujer es diferente!</h1>
+    <button class="home" data-action="home" aria-label="Ir al inicio">
+      <Icon name="inicio" />
+    </button>
+  </div>
+  <div class="camera-info">
+    <h2>
+      Por eso esta activación será
+      <br />
+      100% PERSONALIZADA
+    </h2>
+    <p>Tómate una foto y déjanos conocerte.</p>
+    <p class="camera-error" id="camera-error" role="status"></p>
+    <Cta />
+  </div>
+</section>
