@@ -32,6 +32,30 @@
 .camera-feed > video.is-live {
   animation: media-enter 260ms var(--motion-ease) backwards;
 }
+@keyframes qr-loading-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+.download-qr-loading {
+  animation: qr-loading-spin 1s linear infinite;
+  transition: opacity 250ms ease-out;
+}
+.download-qr-frame:is(.is-ready, .is-failed) .download-qr-loading {
+  opacity: 0;
+  animation-play-state: paused;
+}
+.download-qr-frame canvas {
+  opacity: 0;
+  scale: 0.94;
+  transition:
+    opacity 400ms var(--motion-ease),
+    scale 400ms var(--motion-ease);
+}
+.download-qr-frame.is-ready canvas {
+  opacity: 1;
+  scale: 1;
+}
 .count span {
   display: inline-block;
 }
@@ -71,6 +95,13 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .download-qr-loading {
+    animation: none;
+  }
+  .download-qr-frame canvas,
+  .download-qr-loading {
+    transition: none;
+  }
   .motion-reveal,
   .camera-feed > video.is-live {
     animation: none !important;

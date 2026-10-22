@@ -771,12 +771,20 @@
   height: 16cqw;
   margin-left: 3cqw;
 }
+.download-qr-loading {
+  position: absolute;
+  width: 5cqw;
+  height: 5cqw;
+  border: 0.6cqw solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+}
 .download-qr-frame canvas {
+  position: absolute;
   display: block;
   width: 12cqw !important;
   height: 12cqw !important;
 }
-.download-qr-frame canvas[hidden],
 .retry-upload[hidden] {
   display: none !important;
 }
@@ -820,7 +828,7 @@
 }
 .download-label {
   display: block;
-  flex: none;
+  flex: 0 0 50cqw;
   white-space: nowrap;
 }
 .download-legal {

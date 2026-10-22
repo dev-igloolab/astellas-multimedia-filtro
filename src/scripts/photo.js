@@ -13,10 +13,11 @@ export function showDownload() {
       .querySelector('#download-preview')
       .setAttribute('aria-label', 'Tu fotografía');
   const qr = document.querySelector('#photo-qr');
-  qr.hidden = true;
+  qr.setAttribute('aria-hidden', 'true');
+  qr.closest('.download-qr-frame')?.classList.remove('is-ready', 'is-failed');
   document.querySelector('.download-label').innerHTML =
     'PREPARANDO TU<br />FOTO';
-  setStatus('Preparando y subiendo tu foto...');
+  setStatus('');
   const photoReady =
     state.photo &&
     renderThermal(
@@ -30,6 +31,7 @@ export function showDownload() {
     .then(() => uploadPhoto())
     .catch((error) => {
       console.error(error);
+      qr.closest('.download-qr-frame')?.classList.add('is-failed');
       const label = document.querySelector('.download-label');
       if (label) label.innerHTML = 'DESCARGA TU<br />FOTO';
       setStatus(
@@ -166,7 +168,8 @@ async function showQr(url) {
     color: { dark: '#431d15', light: '#ffb755' },
     errorCorrectionLevel: 'M',
   });
-  qr.hidden = false;
+  qr.removeAttribute('aria-hidden');
+  qr.closest('.download-qr-frame')?.classList.add('is-ready');
   qr.setAttribute(
     'aria-label',
     'QR para abrir y descargar tu fotografía desde otro dispositivo',
@@ -176,13 +179,21 @@ async function showQr(url) {
   document
     .querySelector('[data-action="retry-upload"]')
     ?.setAttribute('hidden', '');
-  setStatus('Tu foto está lista. El QR estará disponible durante 2 días.');
+  setStatus('');
 }
 
 export async function retryPhotoUpload() {
-  setStatus('Subiendo tu foto...');
+  document
+    .querySelector('#photo-qr')
+    ?.closest('.download-qr-frame')
+    ?.classList.remove('is-failed');
+  setStatus('');
   return uploadPhoto().catch((error) => {
     console.error(error);
+    document
+      .querySelector('#photo-qr')
+      ?.closest('.download-qr-frame')
+      ?.classList.add('is-failed');
     setStatus('No se pudo subir la foto. Intenta de nuevo.');
   });
 }

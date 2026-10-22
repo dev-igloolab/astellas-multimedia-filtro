@@ -12,10 +12,11 @@ import Header from '../../ui/Header.astro';
   <div class="download-bottom">
     <button class="download-banner" data-action="download">
       <span class="download-qr-frame">
+        <span class="download-qr-loading" aria-hidden="true"></span>
         <canvas
           id="photo-qr"
           aria-label="QR para abrir tu fotografía"
-          hidden
+          aria-hidden="true"
         ></canvas>
         <i class="corner top-left" aria-hidden="true"></i>
         <i class="corner top-right" aria-hidden="true"></i>
