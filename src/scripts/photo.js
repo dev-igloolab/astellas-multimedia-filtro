@@ -121,9 +121,9 @@ function preparePhoto() {
     ctx.font = '400 46px Anton';
     ctx.fillText('#TomaElControlDeTuMenopausia', 540, 1884);
     const blob = await new Promise((resolve) =>
-      canvas.toBlob(resolve, 'image/webp', 0.94),
+      canvas.toBlob(resolve, 'image/jpeg', 0.92),
     );
-    if (!blob || blob.type !== 'image/webp')
+    if (!blob || blob.type !== 'image/jpeg')
       throw new Error('No se pudo optimizar la imagen');
     return blob;
   })().catch((error) => {
@@ -144,7 +144,7 @@ async function uploadPhoto() {
   uploadBusy = (async () => {
     const response = await fetch('/api/fotos/', {
       method: 'POST',
-      headers: { 'Content-Type': 'image/webp' },
+      headers: { 'Content-Type': 'image/jpeg' },
       body: blob,
     });
     if (!response.ok)
@@ -207,7 +207,7 @@ export async function downloadPhoto() {
     const url = URL.createObjectURL(blob),
       link = document.createElement('a');
     link.href = url;
-    link.download = 'Astellas-TomaElControl.webp';
+    link.download = 'Astellas-TomaElControl.jpg';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch (error) {

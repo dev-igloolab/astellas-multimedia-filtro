@@ -11,8 +11,8 @@ export async function GET({ params }) {
     });
   return new Response(photo.bytes, {
     headers: {
-      'Content-Type': 'image/webp',
-      'Content-Disposition': 'inline; filename="Astellas-TomaElControl.webp"',
+      'Content-Type': photo.contentType,
+      'Content-Disposition': `inline; filename="Astellas-TomaElControl.${photo.extension}"`,
       'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff',
     },

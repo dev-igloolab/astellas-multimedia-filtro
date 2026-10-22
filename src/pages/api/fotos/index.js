@@ -5,7 +5,7 @@ export const prerender = false;
 export async function POST({ request }) {
   const length = Number(request.headers.get('content-length'));
   if (
-    request.headers.get('content-type') !== 'image/webp' ||
+    request.headers.get('content-type') !== 'image/jpeg' ||
     (length && length > MAX_PHOTO_BYTES)
   ) {
     return new Response('Formato o tamaño no admitido', { status: 413 });

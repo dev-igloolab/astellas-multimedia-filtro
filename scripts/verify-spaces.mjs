@@ -4,7 +4,7 @@ import { ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
 import { deletePhoto, readPhoto, savePhoto } from '../src/lib/photo-store.mjs';
 
 const bytes = await readFile(
-  new URL('../public/assets/iconos/calor-termometro.webp', import.meta.url),
+  new URL('../test/fixtures/photo.jpg', import.meta.url),
 );
 let id;
 try {
@@ -18,7 +18,7 @@ try {
     endpoint: `https://${SPACES_REGION}.digitaloceanspaces.com`,
     credentials: { accessKeyId: SPACES_KEY, secretAccessKey: SPACES_SECRET },
   });
-  const expectedKey = `astellas-multimedia-filtro/photos/${id}.webp`;
+  const expectedKey = `astellas-multimedia-filtro/photos/${id}.jpg`;
   const listing = await client.send(
     new ListObjectsV2Command({ Bucket: SPACES_BUCKET, Prefix: expectedKey }),
   );

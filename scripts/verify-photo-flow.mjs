@@ -4,13 +4,13 @@ import { deletePhoto } from '../src/lib/photo-store.mjs';
 
 const origin = process.argv[2] || 'http://localhost:4322';
 const bytes = await readFile(
-  new URL('../public/assets/iconos/calor-termometro.webp', import.meta.url),
+  new URL('../test/fixtures/photo.jpg', import.meta.url),
 );
 let id;
 try {
   const upload = await fetch(new URL('/api/fotos/', origin), {
     method: 'POST',
-    headers: { 'Content-Type': 'image/webp' },
+    headers: { 'Content-Type': 'image/jpeg' },
     body: bytes,
   });
   if (upload.status !== 201)
@@ -25,7 +25,7 @@ try {
 
   const image = await fetch(new URL(`/api/fotos/${id}`, origin));
   assert.equal(image.status, 200);
-  assert.equal(image.headers.get('content-type'), 'image/webp');
+  assert.equal(image.headers.get('content-type'), 'image/jpeg');
   assert.deepEqual(Buffer.from(await image.arrayBuffer()), bytes);
   await deletePhoto(id);
   const removedUrl = url;

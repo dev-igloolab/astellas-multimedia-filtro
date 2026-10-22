@@ -28,8 +28,10 @@ function storage() {
   return { client, bucket: SPACES_BUCKET };
 }
 
-function objectKey(id) {
-  return idPattern.test(id || '') ? `${prefix}${id}.webp` : null;
+function objectKey(id, extension = 'jpg') {
+  return idPattern.test(id || '') && ['jpg', 'webp'].includes(extension)
+    ? `${prefix}${id}.${extension}`
+    : null;
 }
 
 function expiresAt(lastModified) {
@@ -54,8 +56,19 @@ export function isWebP(bytes) {
   );
 }
 
+export function isJpeg(bytes) {
+  return (
+    bytes.length >= 4 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff &&
+    bytes[bytes.length - 2] === 0xff &&
+    bytes[bytes.length - 1] === 0xd9
+  );
+}
+
 export async function savePhoto(bytes) {
-  if (!isWebP(bytes) || bytes.length > MAX_PHOTO_BYTES)
+  if (!isJpeg(bytes) || bytes.length > MAX_PHOTO_BYTES)
     throw new Error('INVALID_PHOTO');
   const { client, bucket } = storage();
   const id = `${Math.floor(Date.now() / 1000).toString(16)}-${randomUUID()}`;
@@ -64,38 +77,45 @@ export async function savePhoto(bytes) {
       Bucket: bucket,
       Key: objectKey(id),
       Body: bytes,
-      ContentType: 'image/webp',
+      ContentType: 'image/jpeg',
       CacheControl: 'private, no-store',
     }),
   );
   return id;
 }
 
-export async function deletePhoto(id) {
-  const key = objectKey(id);
+export async function deletePhoto(id, extension = 'jpg') {
+  const key = objectKey(id, extension);
   if (!key) return;
   const { client, bucket } = storage();
   await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
 
 export async function getPhotoInfo(id) {
-  const key = objectKey(id);
-  if (!key) return null;
+  if (!objectKey(id)) return null;
   const { client, bucket } = storage();
-  try {
-    const object = await client.send(
-      new HeadObjectCommand({ Bucket: bucket, Key: key }),
-    );
-    const expiration = expiresAt(object.LastModified);
-    if (expiration.getTime() <= Date.now()) {
-      await deletePhoto(id);
-      return null;
+  for (const extension of ['jpg', 'webp']) {
+    const key = objectKey(id, extension);
+    try {
+      const object = await client.send(
+        new HeadObjectCommand({ Bucket: bucket, Key: key }),
+      );
+      const expiration = expiresAt(object.LastModified);
+      if (expiration.getTime() <= Date.now()) {
+        await deletePhoto(id, extension);
+        return null;
+      }
+      return {
+        expiresAt: expiration,
+        key,
+        extension,
+        contentType: extension === 'jpg' ? 'image/jpeg' : 'image/webp',
+      };
+    } catch (error) {
+      if (!missing(error)) throw error;
     }
-    return { expiresAt: expiration };
-  } catch (error) {
-    if (missing(error)) return null;
-    throw error;
   }
+  return null;
 }
 
 export async function readPhoto(id) {
@@ -104,7 +124,7 @@ export async function readPhoto(id) {
   const { client, bucket } = storage();
   try {
     const object = await client.send(
-      new GetObjectCommand({ Bucket: bucket, Key: objectKey(id) }),
+      new GetObjectCommand({ Bucket: bucket, Key: info.key }),
     );
     return { ...info, bytes: await object.Body.transformToByteArray() };
   } catch (error) {
