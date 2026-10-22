@@ -981,23 +981,24 @@
   align-items: start;
   column-gap: 1.3cqw;
   font:
-    400 1.5cqw/1.25 'Myriad Variable Concept',
+    400 1.85cqw/1.3 'Myriad Variable Concept',
     sans-serif;
 }
 .consent-copy {
   text-align: justify;
   text-justify: inter-word;
   text-align-last: left;
+  hyphens: auto;
 }
 .privacy-url {
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .privacy-qr {
   display: block;
   float: right;
-  width: 8cqw;
+  width: 9.5cqw;
   aspect-ratio: 1;
-  margin: -0.1cqw 2cqw 0.5cqw 1.2cqw;
+  margin: 0 0 0.75cqw 1.5cqw;
 }
 .privacy-qr img {
   display: block;
