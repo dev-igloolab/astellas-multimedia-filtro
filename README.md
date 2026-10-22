@@ -16,7 +16,7 @@ npm run build
 
 ## Despliegue en DigitalOcean
 
-En App Platform, despliega el repositorio como servicio web Node.js con comando de compilación `npm ci && npm run build` y comando de ejecución `node ./dist/server/entry.mjs`. Define estas variables como secretos del servicio:
+En App Platform, despliega el proyecto como **servicio web Node.js**. Si el repositorio contiene la carpeta `astrellas-multimedia-filtro`, selecciónala como directorio de origen. El comando de compilación es `npm ci && npm run build`; el de ejecución es `npm start` (también puede quedar vacío para usar el comando predeterminado de Node.js). El servidor escucha en `0.0.0.0` y toma el puerto de `PORT`, que App Platform configura automáticamente. Define estas variables como secretos del servicio:
 
 | Variable        | Valor                                                           |
 | --------------- | --------------------------------------------------------------- |

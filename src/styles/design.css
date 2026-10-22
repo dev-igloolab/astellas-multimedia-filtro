@@ -977,10 +977,12 @@
     sans-serif;
 }
 .consent-copy {
-  text-align: left;
+  text-align: justify;
+  text-align-last: left;
+  text-wrap: pretty;
 }
 .privacy-url {
-  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 .privacy-qr {
   display: block;

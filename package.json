@@ -13,7 +13,8 @@
     "astro": "astro",
     "check": "astro check",
     "format": "prettier --write src scripts test *.json *.mjs README.md",
-    "format:check": "prettier --check src scripts test *.json *.mjs README.md"
+    "format:check": "prettier --check src scripts test *.json *.mjs README.md",
+    "start": "node ./scripts/start.mjs"
   },
   "dependencies": {
     "@astrojs/node": "^11.1.9",
