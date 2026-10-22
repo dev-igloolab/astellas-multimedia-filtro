@@ -28,12 +28,13 @@ try {
     throw error;
 }
 
-const id = 'astellas-photos-2-days';
+const id = 'astellas-multimedia-filtro-photos-2-days';
+const prefix = 'astellas-multimedia-filtro/photos/';
 rules = rules.filter((rule) => rule.ID !== id);
 rules.push({
   ID: id,
   Status: 'Enabled',
-  Prefix: 'photos/',
+  Prefix: prefix,
   Expiration: { Days: 2 },
 });
 await client.send(
@@ -49,9 +50,9 @@ const photoRule = verified.Rules?.find((rule) => rule.ID === id);
 if (
   photoRule?.Status !== 'Enabled' ||
   photoRule?.Expiration?.Days !== 2 ||
-  photoRule?.Prefix !== 'photos/'
+  photoRule?.Prefix !== prefix
 )
   throw new Error('No se pudo verificar la regla de expiración');
 console.log(
-  'Regla de expiración para photos/: 2 días. Se conservaron las demás reglas.',
+  `Regla de expiración para ${prefix}: 2 días. Se conservaron las demás reglas.`,
 );

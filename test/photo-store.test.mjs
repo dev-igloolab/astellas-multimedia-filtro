@@ -44,7 +44,7 @@ test('guarda la foto privada y la recupera con un identificador opaco', async ()
   assert.match(id, /^[0-9a-f]{8}-[0-9a-f-]{36}$/);
   const put = s3.commandCalls(PutObjectCommand)[0].args[0].input;
   assert.equal(put.Bucket, 'test-private-space');
-  assert.equal(put.Key, `photos/${id}.webp`);
+  assert.equal(put.Key, `astellas-multimedia-filtro/photos/${id}.webp`);
   assert.equal(put.ACL, undefined);
   assert.deepEqual(Buffer.from((await readPhoto(id)).bytes), bytes);
   assert.equal(isWebP(Buffer.from('not an image')), false);
@@ -68,10 +68,13 @@ test('la limpieza recorre y borra únicamente objetos vencidos', async () => {
   s3.on(ListObjectsV2Command).resolves({
     Contents: [
       {
-        Key: 'photos/old.webp',
+        Key: 'astellas-multimedia-filtro/photos/old.webp',
         LastModified: new Date(Date.now() - 49 * 60 * 60 * 1000),
       },
-      { Key: 'photos/new.webp', LastModified: new Date() },
+      {
+        Key: 'astellas-multimedia-filtro/photos/new.webp',
+        LastModified: new Date(),
+      },
     ],
   });
   s3.on(DeleteObjectCommand).resolves({});
@@ -79,6 +82,6 @@ test('la limpieza recorre y borra únicamente objetos vencidos', async () => {
   assert.equal(s3.commandCalls(DeleteObjectCommand).length, 1);
   assert.equal(
     s3.commandCalls(DeleteObjectCommand)[0].args[0].input.Key,
-    'photos/old.webp',
+    'astellas-multimedia-filtro/photos/old.webp',
   );
 });

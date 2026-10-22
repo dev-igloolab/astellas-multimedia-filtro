@@ -10,7 +10,7 @@ import {
 
 export const PHOTO_LIFETIME_MS = 2 * 24 * 60 * 60 * 1000;
 export const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
-const prefix = 'photos/';
+const prefix = 'astellas-multimedia-filtro/photos/';
 const idPattern = /^[0-9a-f]{8}-[0-9a-f-]{36}$/;
 let client;
 
