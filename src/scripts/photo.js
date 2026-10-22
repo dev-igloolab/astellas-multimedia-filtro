@@ -4,6 +4,8 @@ import { warmAsset } from '../lib/assets.js';
 import QRCode from 'qrcode';
 const photoDisclaimer =
   'Campaña educativa de orientación general. No sustituye la consulta médica ni sirve para tratar condiciones de salud. Ante síntomas o dudas, consulte a su médico.';
+// El marco se aplica solo al archivo exportado; la vista previa ocupa toda la pantalla.
+const exportFrame = { x: 58, y: 158, width: 964, height: 1648 };
 export function showDownload() {
   if (state.resultIndex === 0)
     document
@@ -62,7 +64,7 @@ function preparePhoto() {
       state.photo,
       state.zones,
       filteredPhoto,
-      { width: 936, height: 1590 },
+      { width: exportFrame.width, height: exportFrame.height },
       state.resultIndex,
     );
     const brand = await warmAsset('logo');
@@ -75,13 +77,31 @@ function preparePhoto() {
     const logoHeight = (300 * brand.height) / brand.width;
     ctx.drawImage(brand, 390, (160 - logoHeight) / 2, 300, logoHeight);
     ctx.fillStyle = '#000';
-    ctx.fillRect(72, 168, 936, 1590);
-    ctx.drawImage(filteredPhoto, 72, 168, 936, 1590);
-    const legalShade = ctx.createLinearGradient(0, 1460, 0, 1758);
+    ctx.fillRect(
+      exportFrame.x,
+      exportFrame.y,
+      exportFrame.width,
+      exportFrame.height,
+    );
+    ctx.drawImage(
+      filteredPhoto,
+      exportFrame.x,
+      exportFrame.y,
+      exportFrame.width,
+      exportFrame.height,
+    );
+    const shadeTop = 1470;
+    const photoBottom = exportFrame.y + exportFrame.height;
+    const legalShade = ctx.createLinearGradient(0, shadeTop, 0, photoBottom);
     legalShade.addColorStop(0, '#0000');
     legalShade.addColorStop(1, '#000d');
     ctx.fillStyle = legalShade;
-    ctx.fillRect(72, 1460, 936, 298);
+    ctx.fillRect(
+      exportFrame.x,
+      shadeTop,
+      exportFrame.width,
+      photoBottom - shadeTop,
+    );
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.font = '400 21px "Myriad Variable Concept"';
@@ -95,9 +115,9 @@ function preparePhoto() {
       } else line = next;
     }
     if (line) lines.push(line);
-    lines.forEach((text, index) => ctx.fillText(text, 540, 1660 + index * 25));
+    lines.forEach((text, index) => ctx.fillText(text, 540, 1702 + index * 31));
     ctx.font = '400 46px Anton';
-    ctx.fillText('#TomaElControlDeTuMenopausia', 540, 1840);
+    ctx.fillText('#TomaElControlDeTuMenopausia', 540, 1884);
     const blob = await new Promise((resolve) =>
       canvas.toBlob(resolve, 'image/webp', 0.94),
     );
