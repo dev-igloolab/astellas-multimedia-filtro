@@ -37,6 +37,9 @@
     rotate: 360deg;
   }
 }
+.privacy-spinner {
+  animation: qr-loading-spin 850ms linear infinite;
+}
 .download-qr-loading {
   animation: qr-loading-spin 1s linear infinite;
   transition: opacity 250ms ease-out;
@@ -95,6 +98,9 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .privacy-spinner {
+    animation: none;
+  }
   .download-qr-loading {
     animation: none;
   }

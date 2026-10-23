@@ -186,20 +186,50 @@ async function mountExperience() {
     const frame = app.querySelector('#privacy-frame');
     const title = app.querySelector('#privacy-title');
     const closeButton = app.querySelector('[data-privacy-close]');
+    const loading = app.querySelector('.privacy-loading');
     let trigger;
+    let openedAt = 0;
+    let loadTimer;
+    let loadSequence = 0;
     function closePrivacy() {
+      loadSequence++;
+      clearTimeout(loadTimer);
       overlay.hidden = true;
+      loading.hidden = true;
       frame.removeAttribute('src');
       trigger?.focus();
     }
+    frame.addEventListener(
+      'load',
+      () => {
+        if (overlay.hidden) return;
+        const sequence = loadSequence;
+        clearTimeout(loadTimer);
+        loadTimer = setTimeout(
+          () => {
+            if (sequence === loadSequence && !overlay.hidden)
+              loading.hidden = true;
+          },
+          Math.max(200, 550 - (performance.now() - openedAt)),
+        );
+      },
+      { signal: controller.signal },
+    );
+    controller.signal.addEventListener('abort', () => clearTimeout(loadTimer), {
+      once: true,
+    });
     app.addEventListener(
       'click',
       (event) => {
         const link = event.target.closest('[data-privacy-src]');
         if (link) {
+          loadSequence++;
+          clearTimeout(loadTimer);
+          openedAt = performance.now();
           trigger = link;
           title.textContent = link.dataset.privacyTitle;
           frame.title = link.dataset.privacyTitle;
+          loading.hidden = false;
           overlay.hidden = false;
           frame.src = link.dataset.privacySrc;
           closeButton.focus();

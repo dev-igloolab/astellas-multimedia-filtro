@@ -33,7 +33,7 @@ const privacyPortal =
         de salud y que no estoy obligada a darlas. Mi imagen no se usará para
         otros fines y se eliminará en 2 días. Puedo conocer, actualizar,
         rectificar o suprimir mis datos y revocar esta autorización escribiendo
-        a:
+        a:{' '}
         <button
           type="button"
           class="privacy-link"
@@ -91,11 +91,17 @@ const privacyPortal =
           ×
         </button>
       </div>
-      <iframe
-        id="privacy-frame"
-        title="Página de privacidad"
-        sandbox="allow-forms allow-scripts allow-same-origin"
-      ></iframe>
+      <div class="privacy-frame-wrap">
+        <div class="privacy-loading" role="status" aria-live="polite" hidden>
+          <span class="privacy-spinner" aria-hidden="true"></span>
+          <span>Cargando página…</span>
+        </div>
+        <iframe
+          id="privacy-frame"
+          title="Página de privacidad"
+          sandbox="allow-forms allow-scripts allow-same-origin"
+        ></iframe>
+      </div>
     </div>
   </div>
 </section>
