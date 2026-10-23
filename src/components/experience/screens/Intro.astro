@@ -4,8 +4,6 @@ import Cta from '../../ui/Cta.astro';
 
 const privacyPortal =
   'https://privacyportal-eu.onetrust.com/ui/#/preferences/multipage/login/85ea6596-6f7b-4ed9-aa41-ea3c128e6036?language=es-co';
-const privacyPolicy =
-  'https://www.astellas.com/en/about/privacy-center/privacy-policy.es-co-general-privacy-notice';
 ---
 
 <section class="screen intro">
@@ -44,10 +42,24 @@ const privacyPolicy =
             height="120"
           />
         </span>{' '}
-        <span class="privacy-url">{privacyPortal}</span>. Más información en la
-        Política de Tratamiento de Datos:{' '}
-        <span class="privacy-url">{privacyPolicy}</span> (Privacy Policy |
-        Astellas)
+        <button
+          type="button"
+          class="privacy-link"
+          data-privacy-src={privacyPortal}
+          data-privacy-title="Portal de privacidad"
+          aria-label="Abrir el portal de privacidad"
+        >
+          Link
+        </button>
+        . Más información en la Política de Tratamiento de Datos:{' '}
+        <button
+          type="button"
+          class="privacy-link"
+          data-privacy-src="/api/politica-privacidad/"
+          data-privacy-title="Política de Privacidad | Astellas"
+        >
+          Política de Privacidad | Astellas
+        </button>
       </div>
     </div>
     <div class="legal">
@@ -59,6 +71,31 @@ const privacyPolicy =
         situación relacionada con la seguridad de un producto de Astellas,
         contáctenos en: safetyco@astellas.com
       </p>
+    </div>
+  </div>
+  <div class="privacy-overlay" id="privacy-overlay" hidden>
+    <div
+      class="privacy-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="privacy-title"
+    >
+      <div class="privacy-panel-header">
+        <h2 id="privacy-title"></h2>
+        <button
+          type="button"
+          class="privacy-close"
+          data-privacy-close
+          aria-label="Cerrar página de privacidad"
+        >
+          ×
+        </button>
+      </div>
+      <iframe
+        id="privacy-frame"
+        title="Página de privacidad"
+        sandbox="allow-forms allow-scripts allow-same-origin"
+      ></iframe>
     </div>
   </div>
 </section>

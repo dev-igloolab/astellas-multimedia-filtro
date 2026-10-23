@@ -990,8 +990,21 @@
   text-align-last: left;
   hyphens: auto;
 }
-.privacy-url {
-  overflow-wrap: anywhere;
+.privacy-link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #80c7ff;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+.privacy-link:focus-visible,
+.privacy-close:focus-visible {
+  outline: 0.4cqw solid var(--amber);
+  outline-offset: 0.4cqw;
 }
 .privacy-qr {
   display: block;
@@ -1056,6 +1069,63 @@
 }
 .intro .cta:disabled {
   opacity: 1;
+}
+.privacy-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 5cqw;
+  background: rgb(0 0 0 / 82%);
+}
+.privacy-overlay[hidden] {
+  display: none;
+}
+.privacy-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 1.5cqw;
+  background: #fff;
+  color: var(--brown);
+}
+.privacy-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3cqw;
+  min-height: 10cqw;
+  padding: 1.5cqw 3cqw;
+  background: var(--amber);
+}
+.privacy-panel-header h2 {
+  margin: 0;
+  font:
+    400 3.2cqw/1.15 Anton,
+    sans-serif;
+}
+.privacy-close {
+  flex: none;
+  width: 7cqw;
+  height: 7cqw;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brown);
+  font:
+    400 5cqw/1 Arial,
+    sans-serif;
+  cursor: pointer;
+}
+#privacy-frame {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #fff;
 }
 
 /* Zonas y resultados comparten la misma escala fija del escenario 9:16. */

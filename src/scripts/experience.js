@@ -181,6 +181,45 @@ async function mountExperience() {
     button.textContent = state.assetsLoading ? 'CARGANDO...' : 'INICIAR';
     button.disabled = !state.consent || !state.assetsReady;
   }
+  if (page === 'intro') {
+    const overlay = app.querySelector('#privacy-overlay');
+    const frame = app.querySelector('#privacy-frame');
+    const title = app.querySelector('#privacy-title');
+    const closeButton = app.querySelector('[data-privacy-close]');
+    let trigger;
+    function closePrivacy() {
+      overlay.hidden = true;
+      frame.removeAttribute('src');
+      trigger?.focus();
+    }
+    app.addEventListener(
+      'click',
+      (event) => {
+        const link = event.target.closest('[data-privacy-src]');
+        if (link) {
+          trigger = link;
+          title.textContent = link.dataset.privacyTitle;
+          frame.title = link.dataset.privacyTitle;
+          overlay.hidden = false;
+          frame.src = link.dataset.privacySrc;
+          closeButton.focus();
+        } else if (
+          event.target.closest('[data-privacy-close]') ||
+          event.target === overlay
+        ) {
+          closePrivacy();
+        }
+      },
+      { signal: controller.signal },
+    );
+    document.addEventListener(
+      'keydown',
+      (event) => {
+        if (event.key === 'Escape' && !overlay.hidden) closePrivacy();
+      },
+      { signal: controller.signal },
+    );
+  }
   async function boot() {
     window.ASTELLAS_BOOT?.begin(boot);
     updateIntro();
