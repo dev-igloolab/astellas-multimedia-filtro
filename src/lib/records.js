@@ -40,7 +40,7 @@ export const recordLabels = {
     cara: 'Cara y cuello',
     pecho: 'Pecho y espalda',
     cuerpo: 'Todo el cuerpo',
-    extremidades: 'Brazos y antebrazos',
+    extremidades: 'Brazos y piernas',
   },
   result: {
     none: 'Sin síntomas',
