@@ -307,6 +307,7 @@
     400 1.55cqw/1 Anton,
     sans-serif;
   letter-spacing: 0.045em;
+  text-align: center;
 }
 .camera .detection-zone[data-detected='true'] {
   background: rgb(67 29 21 / 82%);
